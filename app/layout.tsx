@@ -8,9 +8,9 @@ import { SidebarNav } from "@/components/layout/SidebarNav"
 import { Footer } from "@/components/layout/Footer"
 
 export const metadata: Metadata = {
-  title: "v0 App",
-  description: "Created with v0",
-  generator: "v0.app",
+  title: "Data Viz Satellite - Sequentia Pilot",
+  description: "Multi-omics data visualization microservice pilot for Sequentia Biotech platform integration",
+  generator: "Sequentia Biotech IT Team",
 }
 
 export default function RootLayout({

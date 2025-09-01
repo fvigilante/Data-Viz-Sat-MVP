@@ -5,8 +5,11 @@ import type React from "react"
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Slider } from "@/components/ui/slider"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Download, Upload, Loader2 } from "lucide-react"
+import { Download, Upload, Loader2, RotateCcw } from "lucide-react"
 import { ServerVolcanoPlot } from "@/components/ServerVolcanoPlot"
 import { parseCsv } from "@/lib/parseCsv"
 import type { DegRow } from "@/lib/schema"
@@ -373,7 +376,7 @@ export default function VolcanoServerPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 h-full">
+        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
           <div className="xl:col-span-1 space-y-4">
             <Card>
               <CardHeader className="pb-3">
@@ -482,6 +485,97 @@ export default function VolcanoServerPage() {
 
             <Card>
               <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium">Filtering Controls</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">p-Value Threshold</Label>
+                  <Input
+                    type="number"
+                    value={pValueDisplay}
+                    onChange={handlePValueChange}
+                    onBlur={handlePValueBlur}
+                    min={0}
+                    max={1}
+                    step={0.001}
+                    className="w-full text-xs"
+                    placeholder="0.000 - 1.000"
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <Label className="text-xs font-medium">Log2(FC) Range</Label>
+                  <div className="px-2">
+                    <div className="flex justify-between items-center mb-2">
+                      <div className="text-xs font-semibold text-red-600 bg-red-50 px-2 py-1 rounded">
+                        {logFCRange[0].toFixed(2)}
+                      </div>
+                      <div className="text-xs font-semibold text-red-600 bg-red-50 px-2 py-1 rounded">
+                        {logFCRange[1].toFixed(2)}
+                      </div>
+                    </div>
+                    
+                    <div className="relative">
+                      <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-2 bg-slate-200 rounded-full"></div>
+                      <div
+                        className="absolute top-1/2 transform -translate-y-1/2 h-2 bg-red-200 rounded-l-full"
+                        style={{
+                          left: "0%",
+                          width: `${((logFCRange[0] + 5) / 10) * 100}%`,
+                        }}
+                      ></div>
+                      <div
+                        className="absolute top-1/2 transform -translate-y-1/2 h-2 bg-red-200 rounded-r-full"
+                        style={{
+                          left: `${((logFCRange[1] + 5) / 10) * 100}%`,
+                          width: `${100 - ((logFCRange[1] + 5) / 10) * 100}%`,
+                        }}
+                      ></div>
+                      <Slider
+                        value={logFCRange}
+                        onValueChange={setLogFCRange}
+                        min={-5}
+                        max={5}
+                        step={0.1}
+                        className="relative w-full"
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div className="flex justify-between text-xs text-slate-500 mt-1">
+                      <span>-5.00</span>
+                      <span>5.00</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">Search Metabolite</Label>
+                  <Input
+                    type="text"
+                    value={geneSearch}
+                    onChange={(e) => setGeneSearch(e.target.value)}
+                    className="w-full text-xs"
+                    placeholder="Enter metabolite name..."
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full bg-transparent"
+                  onClick={handleReset}
+                  disabled={isLoading}
+                >
+                  <RotateCcw className="h-3 w-3 mr-2" />
+                  Reset Filters
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium">Dataset Info</CardTitle>
               </CardHeader>
               <CardContent>
@@ -534,7 +628,7 @@ export default function VolcanoServerPage() {
           </div>
 
           <div className="xl:col-span-3">
-            <Card className="h-full">
+            <Card className="min-h-[600px]">
               <CardContent className="p-6 h-full">
                 {isLoading ? (
                   <div className="h-full flex items-center justify-center">
@@ -543,18 +637,40 @@ export default function VolcanoServerPage() {
                       <p className="text-sm text-slate-600">Preparing visualization...</p>
                     </div>
                   </div>
-                ) : (
+                ) : filteredData.length > 0 ? (
                   <ServerVolcanoPlot
                     data={filteredData}
                     logFcMin={logFCRange[0]}
                     logFcMax={logFCRange[1]}
                     padjThreshold={pValue}
                   />
+                ) : (
+                  <div className="h-96 flex items-center justify-center text-slate-500">
+                    <div className="text-center">
+                      <Upload className="mx-auto h-12 w-12 mb-4" />
+                      <p className="text-lg mb-2">Upload a CSV/TSV file to view the volcano plot</p>
+                      <p className="text-sm">Expected columns: gene/Metabolite name, logFC/log2(FC), padj/p-Value</p>
+                    </div>
+                  </div>
                 )}
               </CardContent>
             </Card>
           </div>
         </div>
+
+        {(data.length > 0 || errors.length > 0) && (
+          <div className="text-sm text-muted-foreground text-center space-y-1">
+            <div>Total rows: {totalRows}</div>
+            <div>
+              Down-regulated: <span className="text-blue-600 font-medium">{downRegulated.length}</span> | Up-regulated:{" "}
+              <span className="text-red-600 font-medium">{upRegulated.length}</span> | Rest:{" "}
+              <span className="text-gray-600 font-medium">{nonSignificant.length}</span>
+            </div>
+            {data.length > 0 && filteredData.length === 0 && (
+              <span className="text-orange-600 ml-2">(No genes pass current p-value threshold of {pValue})</span>
+            )}
+          </div>
+        )}
 
         {filteredData.length > 0 && (downRegulated.length > 0 || upRegulated.length > 0) && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">

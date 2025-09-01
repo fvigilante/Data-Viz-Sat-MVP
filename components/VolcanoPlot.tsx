@@ -57,11 +57,11 @@ export default function VolcanoPlot({ data, logFcMin = -1, logFcMax = 1, padjThr
       const category = getPointCategory(row)
       switch (category) {
         case "upRegulated":
-          return "#ef4444" // red-500
+          return "#ef4444" // red-500 (keep for biological significance)
         case "downRegulated":
-          return "#3b82f6" // blue-500
+          return "#3b82f6" // blue-500 (keep for biological significance)
         default:
-          return "#6b7280" // gray-500
+          return "#64748b" // Sequentia muted gray
       }
     })
 
@@ -284,7 +284,7 @@ export default function VolcanoPlot({ data, logFcMin = -1, logFcMax = 1, padjThr
               visibleCategories.nonSignificant ? "opacity-100" : "opacity-50"
             }`}
           >
-            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: "#6b7280" }}></div>
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: "#64748b" }}></div>
             <span className="text-foreground">Non significant</span>
           </button>
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import dynamic from "next/dynamic"
 
 const Plot = dynamic(() => import("react-plotly.js"), {
@@ -10,11 +10,11 @@ const Plot = dynamic(() => import("react-plotly.js"), {
 
 interface ServerVolcanoPlotProps {
   data: Array<{
-    gene: string
+    gene: string // Feature identifier (gene, metabolite, protein, etc.)
     logFC: number
     padj: number
-    classyfireSuperclass?: string
-    classyfireClass?: string
+    classyfireSuperclass?: string // For metabolomics data
+    classyfireClass?: string // For metabolomics data
   }>
   logFcMin?: number
   logFcMax?: number
@@ -29,34 +29,122 @@ export function ServerVolcanoPlot({
 }: ServerVolcanoPlotProps) {
   const [plotData, setPlotData] = useState<any[]>([])
   const [layout, setLayout] = useState<any>({})
+  const [visibleCategories, setVisibleCategories] = useState({
+    downRegulated: true,
+    nonSignificant: true,
+    upRegulated: true,
+  })
 
-  useEffect(() => {
-    if (!data || data.length === 0) return
+  const plotCalculations = useMemo(() => {
+    if (!data || data.length === 0) return null
 
-    // Process data for plotting (client-side visualization of server-processed data)
-    const x = data.map((row) => row.logFC)
-    const y = data.map((row) => -Math.log10(row.padj))
-    const text = data.map((row) => row.gene)
-
-    const colors = data.map((row) => {
+    const getPointCategory = (row: any) => {
       const logFC = Number(row.logFC) || 0
       const padj = Number(row.padj) || 1
       const isSignificant = padj <= padjThreshold
 
-      if (!isSignificant) return "#9CA3AF" // Gray for non-significant
-      if (isSignificant && logFC > logFcMax) return "#EF4444" // Red for up-regulated
-      if (isSignificant && logFC < logFcMin) return "#3B82F6" // Blue for down-regulated
-      return "#9CA3AF" // Gray for significant but within range
+      if (!isSignificant) return "nonSignificant"
+      if (isSignificant && logFC > logFcMax) return "upRegulated"
+      if (isSignificant && logFC < logFcMin) return "downRegulated"
+      return "nonSignificant"
+    }
+
+    const visibleData = data.filter((row) => {
+      const category = getPointCategory(row)
+      return visibleCategories[category]
     })
 
-    const hoverText = data.map(
-      (row) =>
-        `<b>${row.gene}</b><br>` +
-        `Log2(FC): ${row.logFC.toFixed(3)}<br>` +
-        `p-Value: ${row.padj.toFixed(6)}<br>` +
-        `${row.classyfireSuperclass ? `Superclass: ${row.classyfireSuperclass}<br>` : ""}` +
-        `${row.classyfireClass ? `Class: ${row.classyfireClass}` : ""}`,
-    )
+    if (visibleData.length === 0) {
+      return null
+    }
+
+    const x = visibleData.map((row) => {
+      const logFC = Number(row.logFC)
+      return isFinite(logFC) ? logFC : 0
+    })
+
+    const y = visibleData.map((row) => {
+      const padj = Number(row.padj)
+      if (!isFinite(padj) || padj <= 0) return 10
+      const logValue = -Math.log10(padj)
+      return isFinite(logValue) ? logValue : 10
+    })
+
+    const colors = visibleData.map((row) => {
+      const category = getPointCategory(row)
+      switch (category) {
+        case "upRegulated":
+          return "#ef4444" // red-500 (keep for biological significance)
+        case "downRegulated":
+          return "#3b82f6" // blue-500 (keep for biological significance)
+        default:
+          return "#6b7280" // gray-500
+      }
+    })
+
+    const hoverText = visibleData.map((row) => {
+      const featureName = String(row.gene) || "Unknown"
+      const superclass = row.classyfireSuperclass || "N/A"
+      const classyClass = row.classyfireClass || "N/A"
+      const logFC = Number(row.logFC) || 0
+      const pValue = Number(row.padj) || 1
+
+      // Build hover text conditionally based on available data
+      let hoverContent = `<b>${featureName}</b><br>`
+
+      // Add classification info if available (mainly for metabolomics)
+      if (row.classyfireSuperclass && row.classyfireSuperclass !== "N/A") {
+        hoverContent += `ClassyFire Superclass: ${superclass}<br>`
+      }
+      if (row.classyfireClass && row.classyfireClass !== "N/A") {
+        hoverContent += `ClassyFire Class: ${classyClass}<br>`
+      }
+
+      hoverContent += `log2(FC): ${logFC.toFixed(3)}<br>`
+      hoverContent += `p-Value: ${pValue.toFixed(6)}`
+
+      return hoverContent
+    })
+
+    const allX = data
+      .map((row) => {
+        const logFC = Number(row.logFC)
+        return isFinite(logFC) ? logFC : 0
+      })
+      .filter((val) => isFinite(val))
+
+    const allY = data
+      .map((row) => {
+        const padj = Number(row.padj)
+        if (!isFinite(padj) || padj <= 0) return 10
+        const logValue = -Math.log10(padj)
+        return isFinite(logValue) ? logValue : 10
+      })
+      .filter((val) => isFinite(val))
+
+    const xMin = allX.length > 0 ? Math.min(...allX) : -5
+    const xMax = allX.length > 0 ? Math.max(...allX) : 5
+    const yMax = allY.length > 0 ? Math.max(...allY) : 5
+
+    return {
+      x,
+      y,
+      colors,
+      hoverText,
+      xMin,
+      xMax,
+      yMax,
+    }
+  }, [data, visibleCategories, logFcMin, logFcMax, padjThreshold])
+
+  useEffect(() => {
+    if (!plotCalculations) {
+      setPlotData([])
+      setLayout({})
+      return
+    }
+
+    const { x, y, colors, hoverText, xMin, xMax, yMax } = plotCalculations
 
     setPlotData([
       {
@@ -73,43 +161,59 @@ export function ServerVolcanoPlot({
             color: "white",
           },
         },
-        text,
-        hovertemplate: hoverText.map((text) => text + "<extra></extra>"),
+        hovertemplate: "%{hovertext}<extra></extra>",
+        hovertext: hoverText,
         showlegend: false,
       },
     ])
 
-    const xMin = Math.min(...x)
-    const xMax = Math.max(...x)
-    const yMax = Math.max(...y)
+    const thresholdLine = -Math.log10(Math.max(padjThreshold, 1e-10))
 
     setLayout({
       title: {
-        text: "Volcano Plot (Server-Processed Data)",
-        font: { size: 16, color: "#1e293b" },
+        text: "",
+        font: { size: 16 },
       },
       xaxis: {
-        title: "Log2(FC)",
+        title: {
+          text: "Log2(FC)",
+          font: { size: 14, color: "#1e293b" },
+        },
         zeroline: true,
         zerolinecolor: "#e2e8f0",
+        zerolinewidth: 1,
         gridcolor: "#f1f5f9",
+        gridwidth: 1,
+        showgrid: true,
+        tickfont: { size: 12, color: "#64748b" },
+        range: [xMin - 0.5, xMax + 0.5],
       },
       yaxis: {
-        title: "-log10(p-value)",
+        title: {
+          text: "-log10(p-value)",
+          font: { size: 14, color: "#1e293b" },
+        },
         zeroline: false,
         gridcolor: "#f1f5f9",
+        gridwidth: 1,
+        showgrid: true,
+        tickfont: { size: 12, color: "#64748b" },
+        range: [0, yMax + 0.5],
       },
+      hovermode: "closest",
+      showlegend: false,
+      margin: { l: 80, r: 80, t: 40, b: 80 },
       plot_bgcolor: "white",
       paper_bgcolor: "white",
-      margin: { t: 50, r: 50, b: 50, l: 60 },
+      font: { family: "Inter, system-ui, sans-serif" },
       shapes: [
         // Horizontal significance line
         {
           type: "line",
-          x0: xMin - 1,
-          x1: xMax + 1,
-          y0: -Math.log10(padjThreshold),
-          y1: -Math.log10(padjThreshold),
+          x0: xMin - 0.5,
+          x1: xMax + 0.5,
+          y0: thresholdLine,
+          y1: thresholdLine,
           line: { color: "#64748b", width: 1, dash: "dash" },
         },
         // Vertical fold change lines
@@ -131,7 +235,14 @@ export function ServerVolcanoPlot({
         },
       ],
     })
-  }, [data, logFcMin, logFcMax, padjThreshold])
+  }, [plotCalculations, logFcMin, logFcMax, padjThreshold])
+
+  const toggleCategory = (category: keyof typeof visibleCategories) => {
+    setVisibleCategories((prev) => ({
+      ...prev,
+      [category]: !prev[category],
+    }))
+  }
 
   if (!data || data.length === 0) {
     return (
@@ -144,19 +255,69 @@ export function ServerVolcanoPlot({
     )
   }
 
+  if (!plotCalculations) {
+    return (
+      <div className="h-full w-full flex items-center justify-center">
+        <div className="text-slate-500 text-center">
+          <p className="text-base font-medium">No visible data points</p>
+          <p className="text-sm">Enable categories in the legend to view data</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="w-full h-full">
+    <div className="w-full h-full relative">
       <Plot
         data={plotData}
         layout={layout}
         config={{
           displayModeBar: true,
+          modeBarButtonsToRemove: ["lasso2d", "select2d"],
+          toImageButtonOptions: {
+            format: "png",
+            filename: "volcano_plot_server",
+            height: 600,
+            width: 900,
+            scale: 2,
+          },
           displaylogo: false,
-          modeBarButtonsToRemove: ["pan2d", "lasso2d", "select2d"],
           responsive: true,
         }}
-        style={{ width: "100%", height: "100%" }}
+        style={{ width: "100%", height: "500px" }}
+        useResizeHandler={true}
       />
+
+      <div className="absolute bottom-4 right-4 bg-white/90 backdrop-blur-sm border rounded-lg p-3 shadow-lg">
+        <div className="space-y-2">
+          <button
+            onClick={() => toggleCategory("downRegulated")}
+            className={`flex items-center gap-2 text-sm transition-opacity ${visibleCategories.downRegulated ? "opacity-100" : "opacity-50"
+              }`}
+          >
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: "#3b82f6" }}></div>
+            <span className="text-slate-600">Down-regulated</span>
+          </button>
+
+          <button
+            onClick={() => toggleCategory("nonSignificant")}
+            className={`flex items-center gap-2 text-sm transition-opacity ${visibleCategories.nonSignificant ? "opacity-100" : "opacity-50"
+              }`}
+          >
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: "#64748b" }}></div>
+            <span className="text-slate-600">Non significant</span>
+          </button>
+
+          <button
+            onClick={() => toggleCategory("upRegulated")}
+            className={`flex items-center gap-2 text-sm transition-opacity ${visibleCategories.upRegulated ? "opacity-100" : "opacity-50"
+              }`}
+          >
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: "#ef4444" }}></div>
+            <span className="text-slate-600">Up-regulated</span>
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

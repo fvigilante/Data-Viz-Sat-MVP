@@ -30,6 +30,7 @@ export default function VolcanoPage() {
 
   const [logFCRange, setLogFCRange] = useState([-0.5, 0.5])
   const [pValue, setPValue] = useState(0.05)
+  const [geneSearch, setGeneSearch] = useState("")
 
   const [isLoading, setIsLoading] = useState(false)
   const [loadingDatasetSize, setLoadingDatasetSize] = useState<number | null>(null)
@@ -44,11 +45,16 @@ export default function VolcanoPage() {
       pValue,
       "LogFC range:",
       logFCRange,
+      "Gene search:",
+      geneSearch,
     )
-    const filtered = data // Don't filter by p-value - show all points
+    const filtered = data.filter((row) => {
+      const passesGeneSearch = !geneSearch || row.gene.toLowerCase().includes(geneSearch.toLowerCase())
+      return passesGeneSearch
+    })
     console.log("[v0] Filtered data length:", filtered.length)
     setFilteredData(filtered)
-  }, [data, pValue, logFCRange]) // Keep all dependencies for consistency
+  }, [data, pValue, logFCRange, geneSearch]) // Keep all dependencies for consistency
 
   useEffect(() => {
     setPValueInput(pValue.toString())
@@ -173,6 +179,7 @@ export default function VolcanoPage() {
   const resetView = useCallback(() => {
     setLogFCRange([-0.5, 0.5])
     setPValue(0.05)
+    setGeneSearch("")
   }, [])
 
   const downloadPlot = useCallback(() => {
@@ -358,7 +365,7 @@ export default function VolcanoPage() {
 
       <Card>
         <CardContent className="p-6">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-end">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-end">
             <div className="space-y-2">
               <Label className="text-sm font-medium">p-Value</Label>
               <Input
@@ -376,6 +383,18 @@ export default function VolcanoPage() {
                 step={0.001}
                 className="w-full"
                 placeholder="0.000 - 1.000"
+                disabled={isLoading}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Search Metabolite</Label>
+              <Input
+                type="text"
+                value={geneSearch}
+                onChange={(e) => setGeneSearch(e.target.value)}
+                className="w-full"
+                placeholder="Enter metabolite name..."
                 disabled={isLoading}
               />
             </div>
@@ -679,13 +698,21 @@ export default function VolcanoPage() {
       {(data.length > 0 || errors.length > 0) && (
         <div className="text-sm text-muted-foreground text-center space-y-1">
           <div>Total rows: {totalRows}</div>
+          {geneSearch && (
+            <div>
+              Search results: <span className="text-purple-600 font-medium">{filteredData.length}</span> metabolites found for "{geneSearch}"
+            </div>
+          )}
           <div>
             Down-regulated: <span className="text-blue-600 font-medium">{downRegulated.length}</span> | Up-regulated:{" "}
             <span className="text-red-600 font-medium">{upRegulated.length}</span> | Rest:{" "}
             <span className="text-gray-600 font-medium">{nonSignificant.length}</span>
           </div>
-          {data.length > 0 && filteredData.length === 0 && (
+          {data.length > 0 && filteredData.length === 0 && !geneSearch && (
             <span className="text-orange-600 ml-2">(No genes pass current p-value threshold of {pValue})</span>
+          )}
+          {data.length > 0 && filteredData.length === 0 && geneSearch && (
+            <span className="text-orange-600 ml-2">(No metabolites found matching "{geneSearch}")</span>
           )}
         </div>
       )}
