@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { ExternalLink, Github, Globe } from "lucide-react"
+import { Github } from "lucide-react"
 import Link from "next/link"
 
 export default function AboutPage() {
@@ -90,54 +90,73 @@ export default function AboutPage() {
             </div>
           </div>
 
-          <h3>🌋 Dual Volcano Plot Implementations</h3>
+          <h3>🌋 Triple Volcano Plot Implementations</h3>
           <p>
-            The application demonstrates two distinct approaches to data processing and visualization, each optimized
-            for different use cases and dataset sizes.
+            The application demonstrates three distinct approaches to data processing and visualization, each optimized
+            for different use cases, dataset sizes, and performance requirements.
           </p>
 
-          <div className="not-prose grid grid-cols-1 lg:grid-cols-2 gap-6 my-6">
-            <div className="border border-green-200 rounded-lg p-6 bg-green-50/50">
-              <div className="flex items-center gap-2 mb-4">
+          <div className="not-prose grid grid-cols-1 lg:grid-cols-3 gap-4 my-6">
+            <div className="border border-green-200 rounded-lg p-4 bg-green-50/50">
+              <div className="flex items-center gap-2 mb-3">
                 <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
                   /plots/volcano
                 </Badge>
-                <span className="text-sm font-medium text-blue-800">Client-Side Processing</span>
+                <span className="text-xs font-medium text-blue-800">Client-Side Processing</span>
               </div>
 
-              <h4 className="font-semibold text-blue-900 mb-3">⚡ Real-Time Interactivity</h4>
-              <ul className="space-y-2 text-sm text-blue-800">
+              <h4 className="font-semibold text-blue-900 mb-2 text-sm">⚡ Real-Time Interactivity</h4>
+              <ul className="space-y-1 text-xs text-blue-800">
                 <li><strong>Data Flow:</strong> Upload → Parse → Validate → Visualize</li>
                 <li><strong>Performance:</strong> Optimal for datasets up to 50K points</li>
-                <li><strong>Features:</strong> Live filtering, instant updates, smooth interactions</li>
-                <li><strong>Technology:</strong> Papa Parse + Zod validation + React state</li>
-                <li><strong>Memory:</strong> ~5MB (1K) to ~100MB (50K points)</li>
+                <li><strong>Features:</strong> Live filtering, instant updates</li>
+                <li><strong>Technology:</strong> Papa Parse + Zod + React state</li>
               </ul>
 
-              <div className="mt-4 p-3 bg-blue-100 rounded text-xs text-blue-700">
-                <strong>Best for:</strong> Interactive analysis, real-time exploration, moderate datasets
+              <div className="mt-3 p-2 bg-blue-100 rounded text-xs text-blue-700">
+                <strong>Best for:</strong> Interactive analysis, real-time exploration
               </div>
             </div>
 
-            <div className="border border-emerald-200 rounded-lg p-6 bg-emerald-50/50">
-              <div className="flex items-center gap-2 mb-4">
+            <div className="border border-emerald-200 rounded-lg p-4 bg-emerald-50/50">
+              <div className="flex items-center gap-2 mb-3">
                 <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
                   /plots/volcano-server
                 </Badge>
-                <span className="text-sm font-medium text-green-800">Server-Side Processing</span>
+                <span className="text-xs font-medium text-green-800">Server-Side Processing</span>
               </div>
 
-              <h4 className="font-semibold text-green-900 mb-3">🚀 Scalable Architecture</h4>
-              <ul className="space-y-2 text-sm text-green-800">
+              <h4 className="font-semibold text-green-900 mb-2 text-sm">🚀 Scalable Architecture</h4>
+              <ul className="space-y-1 text-xs text-green-800">
                 <li><strong>Data Flow:</strong> API → Process → Cache → Render</li>
                 <li><strong>Performance:</strong> Handles 100K+ points efficiently</li>
-                <li><strong>Features:</strong> Server preprocessing, API caching, reduced client load</li>
-                <li><strong>Technology:</strong> Next.js API routes + server-side Papa Parse</li>
-                <li><strong>Memory:</strong> Minimal client usage, server-side processing</li>
+                <li><strong>Features:</strong> Server preprocessing, API caching</li>
+                <li><strong>Technology:</strong> Next.js API routes + Papa Parse</li>
               </ul>
 
-              <div className="mt-4 p-3 bg-green-100 rounded text-xs text-green-700">
-                <strong>Best for:</strong> Large datasets, batch processing, resource-constrained clients
+              <div className="mt-3 p-2 bg-green-100 rounded text-xs text-green-700">
+                <strong>Best for:</strong> Large datasets, batch processing
+              </div>
+            </div>
+
+            <div className="border border-purple-200 rounded-lg p-4 bg-purple-50/50">
+              <div className="flex items-center gap-2 mb-3">
+                <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                  FastAPI + Python
+                </Badge>
+                <span className="text-xs font-medium text-purple-800">High-Performance Backend</span>
+              </div>
+
+              <h4 className="font-semibold text-purple-900 mb-2 text-sm">🔥 Maximum Performance</h4>
+              <ul className="space-y-1 text-xs text-purple-800">
+                <li><strong>Data Flow:</strong> Python API → Pandas → Server Filters → JSON</li>
+                <li><strong>Performance:</strong> Handles 1M+ points with server-side filtering</li>
+                <li><strong>Features:</strong> Advanced filtering, statistical processing</li>
+                <li><strong>Technology:</strong> FastAPI + Pandas + NumPy + Uvicorn</li>
+              </ul>
+
+              <div className="mt-3 p-2 bg-purple-100 rounded text-xs text-purple-700">
+                <strong>Best for:</strong> Massive datasets, scientific computing, production workloads
               </div>
             </div>
           </div>
@@ -227,6 +246,16 @@ export default function AboutPage() {
               </ul>
             </div>
 
+            <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+              <h4 className="font-semibold text-purple-900 mb-3">🐍 Python Backend</h4>
+              <ul className="space-y-1 text-sm text-purple-800">
+                <li>• <strong>FastAPI</strong> - High-performance API framework</li>
+                <li>• <strong>Pandas</strong> - Data manipulation and analysis</li>
+                <li>• <strong>NumPy</strong> - Numerical computing</li>
+                <li>• <strong>Uvicorn</strong> - ASGI server</li>
+              </ul>
+            </div>
+
             <div className="bg-slate-50 p-4 rounded-lg border">
               <h4 className="font-semibold text-slate-900 mb-3">🔧 Development</h4>
               <ul className="space-y-1 text-sm text-slate-600">
@@ -266,41 +295,48 @@ export default function AboutPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-300">
-                    <th className="text-left py-2 px-3 font-medium">Dataset Size</th>
-                    <th className="text-left py-2 px-3 font-medium">Client Load Time</th>
-                    <th className="text-left py-2 px-3 font-medium">Server Load Time</th>
-                    <th className="text-left py-2 px-3 font-medium">Memory Usage</th>
-                    <th className="text-left py-2 px-3 font-medium">Recommendation</th>
+                    <th className="text-left py-2 px-2 font-medium">Dataset Size</th>
+                    <th className="text-left py-2 px-2 font-medium">Client-Side</th>
+                    <th className="text-left py-2 px-2 font-medium">Server-Side</th>
+                    <th className="text-left py-2 px-2 font-medium">Python API</th>
+                    <th className="text-left py-2 px-2 font-medium">Recommendation</th>
                   </tr>
                 </thead>
                 <tbody className="text-slate-600">
                   <tr className="border-b border-slate-200">
-                    <td className="py-2 px-3 font-medium">1,000 rows</td>
-                    <td className="py-2 px-3">~200ms</td>
-                    <td className="py-2 px-3">~150ms</td>
-                    <td className="py-2 px-3">~5MB</td>
-                    <td className="py-2 px-3"><Badge variant="outline" className="bg-green-50 text-green-700">Client-side</Badge></td>
+                    <td className="py-2 px-2 font-medium">1,000 rows</td>
+                    <td className="py-2 px-2">~200ms</td>
+                    <td className="py-2 px-2">~150ms</td>
+                    <td className="py-2 px-2">~50ms</td>
+                    <td className="py-2 px-2"><Badge variant="outline" className="bg-green-50 text-green-700">Client-side</Badge></td>
                   </tr>
                   <tr className="border-b border-slate-200">
-                    <td className="py-2 px-3 font-medium">10,000 rows</td>
-                    <td className="py-2 px-3">~800ms</td>
-                    <td className="py-2 px-3">~300ms</td>
-                    <td className="py-2 px-3">~25MB</td>
-                    <td className="py-2 px-3"><Badge variant="outline" className="bg-green-50 text-green-700">Client-side</Badge></td>
+                    <td className="py-2 px-2 font-medium">10,000 rows</td>
+                    <td className="py-2 px-2">~800ms</td>
+                    <td className="py-2 px-2">~300ms</td>
+                    <td className="py-2 px-2">~100ms</td>
+                    <td className="py-2 px-2"><Badge variant="outline" className="bg-green-50 text-green-700">Client-side</Badge></td>
                   </tr>
                   <tr className="border-b border-slate-200">
-                    <td className="py-2 px-3 font-medium">50,000 rows</td>
-                    <td className="py-2 px-3">~3s</td>
-                    <td className="py-2 px-3">~800ms</td>
-                    <td className="py-2 px-3">~100MB</td>
-                    <td className="py-2 px-3"><Badge variant="outline" className="bg-amber-50 text-amber-700">Either</Badge></td>
+                    <td className="py-2 px-2 font-medium">50,000 rows</td>
+                    <td className="py-2 px-2">~3s</td>
+                    <td className="py-2 px-2">~800ms</td>
+                    <td className="py-2 px-2">~200ms</td>
+                    <td className="py-2 px-2"><Badge variant="outline" className="bg-purple-50 text-purple-700">Python API</Badge></td>
+                  </tr>
+                  <tr className="border-b border-slate-200">
+                    <td className="py-2 px-2 font-medium">100,000 rows</td>
+                    <td className="py-2 px-2">Not recommended</td>
+                    <td className="py-2 px-2">~1.5s</td>
+                    <td className="py-2 px-2">~400ms</td>
+                    <td className="py-2 px-2"><Badge variant="outline" className="bg-purple-50 text-purple-700">Python API</Badge></td>
                   </tr>
                   <tr>
-                    <td className="py-2 px-3 font-medium">100,000+ rows</td>
-                    <td className="py-2 px-3">Not recommended</td>
-                    <td className="py-2 px-3">~1.5s</td>
-                    <td className="py-2 px-3">~200MB</td>
-                    <td className="py-2 px-3"><Badge variant="outline" className="bg-blue-50 text-blue-700">Server-side</Badge></td>
+                    <td className="py-2 px-2 font-medium">1,000,000+ rows</td>
+                    <td className="py-2 px-2">Not supported</td>
+                    <td className="py-2 px-2">Not recommended</td>
+                    <td className="py-2 px-2">~1-2s</td>
+                    <td className="py-2 px-2"><Badge variant="outline" className="bg-purple-50 text-purple-700">Python API</Badge></td>
                   </tr>
                 </tbody>
               </table>
@@ -313,6 +349,7 @@ export default function AboutPage() {
               <ul className="space-y-1 text-sm text-green-800">
                 <li>• Memoized calculations with React.useMemo</li>
                 <li>• WebGL acceleration (scattergl) for 100K+ data points</li>
+                <li>• Python/Pandas for server-side filtering and processing</li>
                 <li>• Dynamic imports for code splitting</li>
                 <li>• Efficient data structures and cleanup</li>
               </ul>

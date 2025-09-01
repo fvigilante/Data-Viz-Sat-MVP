@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { BarChart3, Info, ScanText as Scatter, TrendingUp, Server } from "lucide-react"
+import { BarChart3, Info, ScanText as Scatter, TrendingUp, Server, Zap } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
@@ -18,6 +18,13 @@ const navItems = [
     href: "/plots/volcano-server",
     icon: Server,
     disabled: false,
+  },
+  {
+    title: "Volcano (FastAPI)",
+    href: "/plots/volcano-fastapi",
+    icon: Zap,
+    disabled: false,
+    badge: "NEW",
   },
   {
     title: "PCA",
@@ -68,6 +75,11 @@ export function SidebarNav() {
               <Link href={item.href}>
                 <Icon className="h-4 w-4" />
                 {item.title}
+                {item.badge && (
+                  <span className="ml-auto text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full font-medium">
+                    {item.badge}
+                  </span>
+                )}
               </Link>
             </Button>
           )

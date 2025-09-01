@@ -515,7 +515,7 @@ export default function VolcanoServerPage() {
                         {logFCRange[1].toFixed(2)}
                       </div>
                     </div>
-                    
+
                     <div className="relative">
                       <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-2 bg-slate-200 rounded-full"></div>
                       <div
