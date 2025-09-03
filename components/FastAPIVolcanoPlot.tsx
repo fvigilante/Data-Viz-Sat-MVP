@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -48,11 +48,11 @@ export default function FastAPIVolcanoPlot() {
   const [stats, setStats] = useState({ up_regulated: 0, down_regulated: 0, non_significant: 0 })
   const [totalRows, setTotalRows] = useState(0)
   const [filteredRows, setFilteredRows] = useState(0)
-  
+
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isReady, setIsReady] = useState(false)
-  
+
   // Filter states
   const [pValue, setPValue] = useState(0.05)
   const [pValueInput, setPValueInput] = useState("0.05")
@@ -63,7 +63,7 @@ export default function FastAPIVolcanoPlot() {
   const fetchVolcanoData = useCallback(async (params: FilterParams) => {
     setIsLoading(true)
     setError(null)
-    
+
     try {
       const queryParams = new URLSearchParams({
         p_value_threshold: params.p_value_threshold.toString(),
@@ -74,19 +74,19 @@ export default function FastAPIVolcanoPlot() {
       })
 
       const response = await fetch(`${API_BASE_URL}/api/volcano-data?${queryParams}`)
-      
+
       if (!response.ok) {
         throw new Error(`API Error: ${response.status} ${response.statusText}`)
       }
-      
+
       const result: VolcanoResponse = await response.json()
-      
+
       setData(result.data)
       setStats(result.stats)
       setTotalRows(result.total_rows)
       setFilteredRows(result.filtered_rows)
       setIsReady(true)
-      
+
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Unknown error occurred"
       setError(errorMessage)
@@ -145,7 +145,7 @@ export default function FastAPIVolcanoPlot() {
         type: "scattergl" as const,
         name: "Up-regulated",
         marker: { color: "#ef4444", size: 6 },
-        text: upRegulated.map(d => 
+        text: upRegulated.map(d =>
           `${d.gene}<br>Log2(FC): ${d.logFC}<br>p-value: ${d.padj}<br>Superclass: ${d.classyfireSuperclass || "N/A"}`
         ),
         hovertemplate: "%{text}<extra></extra>"
@@ -157,7 +157,7 @@ export default function FastAPIVolcanoPlot() {
         type: "scattergl" as const,
         name: "Down-regulated",
         marker: { color: "#3b82f6", size: 6 },
-        text: downRegulated.map(d => 
+        text: downRegulated.map(d =>
           `${d.gene}<br>Log2(FC): ${d.logFC}<br>p-value: ${d.padj}<br>Superclass: ${d.classyfireSuperclass || "N/A"}`
         ),
         hovertemplate: "%{text}<extra></extra>"
@@ -169,7 +169,7 @@ export default function FastAPIVolcanoPlot() {
         type: "scattergl" as const,
         name: "Non-significant",
         marker: { color: "#6b7280", size: 4, opacity: 0.6 },
-        text: nonSignificant.map(d => 
+        text: nonSignificant.map(d =>
           `${d.gene}<br>Log2(FC): ${d.logFC}<br>p-value: ${d.padj}<br>Superclass: ${d.classyfireSuperclass || "N/A"}`
         ),
         hovertemplate: "%{text}<extra></extra>"
@@ -215,6 +215,90 @@ export default function FastAPIVolcanoPlot() {
       }
     ]
   }
+
+  // Memoized table data - now keeping all data for virtual scrolling
+  const tableData = useMemo(() => {
+    const downRegulated = data
+      .filter(d => d.category === "down")
+      .sort((a, b) => a.logFC - b.logFC)
+
+    const upRegulated = data
+      .filter(d => d.category === "up")
+      .sort((a, b) => b.logFC - a.logFC)
+
+    return { downRegulated, upRegulated }
+  }, [data])
+
+  // Virtual scrolling state
+  const [downScrollTop, setDownScrollTop] = useState(0)
+  const [upScrollTop, setUpScrollTop] = useState(0)
+  const downScrollRef = useRef<HTMLDivElement>(null)
+  const upScrollRef = useRef<HTMLDivElement>(null)
+
+  // Virtual scrolling constants
+  const ROW_HEIGHT = 53 // Height of each table row in pixels
+  const CONTAINER_HEIGHT = 384 // max-h-96 = 384px
+  const VISIBLE_ROWS = Math.ceil(CONTAINER_HEIGHT / ROW_HEIGHT)
+  const BUFFER_ROWS = 5 // Extra rows to render for smooth scrolling
+
+  // Calculate visible rows for virtual scrolling
+  const getVisibleRows = (scrollTop: number, totalRows: number) => {
+    const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - BUFFER_ROWS)
+    const endIndex = Math.min(totalRows, startIndex + VISIBLE_ROWS + (BUFFER_ROWS * 2))
+    return { startIndex, endIndex, visibleRows: endIndex - startIndex }
+  }
+
+  const downVisibleRange = getVisibleRows(downScrollTop, tableData.downRegulated.length)
+  const upVisibleRange = getVisibleRows(upScrollTop, tableData.upRegulated.length)
+
+  // Download functions for individual tables
+  const downloadDownRegulated = useCallback(() => {
+    const headers = ["Metabolite name", "ClassyFire Superclass", "ClassyFire Class", "Log2(FC)", "p-Value"]
+    const csvContent = [
+      headers.join(","),
+      ...tableData.downRegulated.map(row =>
+        [
+          `"${row.gene}"`,
+          `"${row.classyfireSuperclass || ""}"`,
+          `"${row.classyfireClass || ""}"`,
+          row.logFC,
+          row.padj
+        ].join(",")
+      )
+    ].join("\n")
+
+    const blob = new Blob([csvContent], { type: "text/csv" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "down_regulated_metabolites.csv"
+    a.click()
+    URL.revokeObjectURL(url)
+  }, [tableData.downRegulated])
+
+  const downloadUpRegulated = useCallback(() => {
+    const headers = ["Metabolite name", "ClassyFire Superclass", "ClassyFire Class", "Log2(FC)", "p-Value"]
+    const csvContent = [
+      headers.join(","),
+      ...tableData.upRegulated.map(row =>
+        [
+          `"${row.gene}"`,
+          `"${row.classyfireSuperclass || ""}"`,
+          `"${row.classyfireClass || ""}"`,
+          row.logFC,
+          row.padj
+        ].join(",")
+      )
+    ].join("\n")
+
+    const blob = new Blob([csvContent], { type: "text/csv" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "up_regulated_metabolites.csv"
+    a.click()
+    URL.revokeObjectURL(url)
+  }, [tableData.upRegulated])
 
   const downloadCSV = useCallback(() => {
     const headers = ["Metabolite name", "ClassyFire Superclass", "ClassyFire Class", "Log2(FC)", "p-Value", "Category"]
@@ -286,7 +370,7 @@ export default function FastAPIVolcanoPlot() {
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-end">
             <div className="space-y-2">
               <Label className="text-sm font-medium">Dataset Size</Label>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   onClick={() => setDatasetSize(10000)}
                   variant={datasetSize === 10000 ? "default" : "outline"}
@@ -310,6 +394,30 @@ export default function FastAPIVolcanoPlot() {
                   disabled={isLoading}
                 >
                   100K
+                </Button>
+                <Button
+                  onClick={() => setDatasetSize(500000)}
+                  variant={datasetSize === 500000 ? "default" : "outline"}
+                  size="sm"
+                  disabled={isLoading}
+                >
+                  500K
+                </Button>
+                <Button
+                  onClick={() => setDatasetSize(1000000)}
+                  variant={datasetSize === 1000000 ? "default" : "outline"}
+                  size="sm"
+                  disabled={isLoading}
+                >
+                  1M
+                </Button>
+                <Button
+                  onClick={() => setDatasetSize(5000000)}
+                  variant={datasetSize === 5000000 ? "default" : "outline"}
+                  size="sm"
+                  disabled={isLoading}
+                >
+                  5M
                 </Button>
               </div>
             </div>
@@ -442,6 +550,163 @@ export default function FastAPIVolcanoPlot() {
         </CardContent>
       </Card>
 
+      {/* Metabolite Tables */}
+      {isReady && data.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Down-regulated Metabolites Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                  Down-regulated Metabolites ({stats.down_regulated})
+                </div>
+                <Button
+                  onClick={downloadDownRegulated}
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  disabled={isLoading || tableData.downRegulated.length === 0}
+                >
+                  <Download className="h-4 w-4" />
+                  Download CSV
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div
+                ref={downScrollRef}
+                className="max-h-96 overflow-y-auto"
+                onScroll={(e) => setDownScrollTop(e.currentTarget.scrollTop)}
+              >
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Metabolite</TableHead>
+                      <TableHead>Log2(FC)</TableHead>
+                      <TableHead>p-Value</TableHead>
+                      <TableHead>Superclass</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {/* Virtual scrolling spacer - top */}
+                    {downVisibleRange.startIndex > 0 && (
+                      <tr style={{ height: downVisibleRange.startIndex * ROW_HEIGHT }}>
+                        <td colSpan={4}></td>
+                      </tr>
+                    )}
+
+                    {/* Visible rows */}
+                    {tableData.downRegulated
+                      .slice(downVisibleRange.startIndex, downVisibleRange.endIndex)
+                      .map((metabolite, index) => (
+                        <TableRow key={`down-${metabolite.gene}-${downVisibleRange.startIndex + index}`}>
+                          <TableCell className="font-medium">{metabolite.gene}</TableCell>
+                          <TableCell className="text-blue-600 font-medium">
+                            {metabolite.logFC.toFixed(3)}
+                          </TableCell>
+                          <TableCell>{metabolite.padj.toExponential(2)}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {metabolite.classyfireSuperclass || "N/A"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+
+                    {/* Virtual scrolling spacer - bottom */}
+                    {downVisibleRange.endIndex < tableData.downRegulated.length && (
+                      <tr style={{ height: (tableData.downRegulated.length - downVisibleRange.endIndex) * ROW_HEIGHT }}>
+                        <td colSpan={4}></td>
+                      </tr>
+                    )}
+                  </TableBody>
+                </Table>
+                {tableData.downRegulated.length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No down-regulated metabolites found
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Up-regulated Metabolites Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                  Up-regulated Metabolites ({stats.up_regulated})
+                </div>
+                <Button
+                  onClick={downloadUpRegulated}
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  disabled={isLoading || tableData.upRegulated.length === 0}
+                >
+                  <Download className="h-4 w-4" />
+                  Download CSV
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div
+                ref={upScrollRef}
+                className="max-h-96 overflow-y-auto"
+                onScroll={(e) => setUpScrollTop(e.currentTarget.scrollTop)}
+              >
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Metabolite</TableHead>
+                      <TableHead>Log2(FC)</TableHead>
+                      <TableHead>p-Value</TableHead>
+                      <TableHead>Superclass</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {/* Virtual scrolling spacer - top */}
+                    {upVisibleRange.startIndex > 0 && (
+                      <tr style={{ height: upVisibleRange.startIndex * ROW_HEIGHT }}>
+                        <td colSpan={4}></td>
+                      </tr>
+                    )}
+
+                    {/* Visible rows */}
+                    {tableData.upRegulated
+                      .slice(upVisibleRange.startIndex, upVisibleRange.endIndex)
+                      .map((metabolite, index) => (
+                        <TableRow key={`up-${metabolite.gene}-${upVisibleRange.startIndex + index}`}>
+                          <TableCell className="font-medium">{metabolite.gene}</TableCell>
+                          <TableCell className="text-red-600 font-medium">
+                            {metabolite.logFC.toFixed(3)}
+                          </TableCell>
+                          <TableCell>{metabolite.padj.toExponential(2)}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {metabolite.classyfireSuperclass || "N/A"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+
+                    {/* Virtual scrolling spacer - bottom */}
+                    {upVisibleRange.endIndex < tableData.upRegulated.length && (
+                      <tr style={{ height: (tableData.upRegulated.length - upVisibleRange.endIndex) * ROW_HEIGHT }}>
+                        <td colSpan={4}></td>
+                      </tr>
+                    )}
+                  </TableBody>
+                </Table>
+                {tableData.upRegulated.length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No up-regulated metabolites found
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Statistics */}
       {isReady && (
         <div className="text-sm text-muted-foreground text-center space-y-1">
@@ -450,8 +715,8 @@ export default function FastAPIVolcanoPlot() {
             {searchTerm && ` | Search: "${searchTerm}"`}
           </div>
           <div>
-            Down-regulated: <span className="text-blue-600 font-medium">{stats.down_regulated}</span> | 
-            Up-regulated: <span className="text-red-600 font-medium">{stats.up_regulated}</span> | 
+            Down-regulated: <span className="text-blue-600 font-medium">{stats.down_regulated}</span> |
+            Up-regulated: <span className="text-red-600 font-medium">{stats.up_regulated}</span> |
             Non-significant: <span className="text-gray-600 font-medium">{stats.non_significant}</span>
           </div>
         </div>
