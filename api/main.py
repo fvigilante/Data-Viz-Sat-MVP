@@ -4,14 +4,18 @@ from pydantic import BaseModel
 from typing import Optional, List
 import polars as pl
 import json
+import os
 from pathlib import Path
 
 app = FastAPI(title="Data Viz Satellite API", version="1.0.0")
 
-# CORS middleware for Next.js frontend
+# CORS middleware - read allowed origins from environment variable
+frontend_url = os.getenv("FRONTEND_URL", "*")
+allowed_origins = [frontend_url] if frontend_url != "*" else ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "https://your-domain.com"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -111,6 +115,10 @@ async def root():
 async def health_check():
     return {"status": "healthy"}
 
+@app.get("/ready")
+async def readiness_check():
+    return {"status": "ready"}
+
 @app.post("/api/volcano-data", response_model=VolcanoResponse)
 async def get_volcano_data(filters: FilterParams):
     """
@@ -192,4 +200,5 @@ async def get_volcano_data_get(
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)

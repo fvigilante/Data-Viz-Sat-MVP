@@ -486,9 +486,136 @@ npm run start
 
 ## 🚀 Deployment & Production
 
-### Deployment Options
+### Google Cloud Run Multi-Container Deployment (Recommended)
 
-#### Vercel (Recommended)
+This project is configured for Google Cloud Run multi-container deployment with separate containers for the Next.js frontend and FastAPI backend.
+
+#### Prerequisites
+- Google Cloud SDK installed and configured
+- Docker installed
+- Google Cloud project with Artifact Registry enabled
+- Billing enabled on your Google Cloud project
+
+#### Build and Push Images to Artifact Registry
+
+1. **Set up environment variables**
+   \`\`\`bash
+   export PROJECT_ID=your-google-cloud-project-id
+   export REGION=europe-west1
+   export REPOSITORY=data-viz-satellite
+   \`\`\`
+
+2. **Create Artifact Registry repository (one-time setup)**
+   \`\`\`bash
+   gcloud artifacts repositories create $REPOSITORY \
+     --repository-format=docker \
+     --location=$REGION \
+     --description="Data Viz Satellite container images"
+   \`\`\`
+
+3. **Configure Docker authentication**
+   \`\`\`bash
+   gcloud auth configure-docker $REGION-docker.pkg.dev
+   \`\`\`
+
+4. **Build and push the frontend image**
+   \`\`\`bash
+   # Build the Next.js frontend image
+   docker build -f Dockerfile.production -t $REGION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/frontend:latest .
+   
+   # Push to Artifact Registry
+   docker push $REGION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/frontend:latest
+   \`\`\`
+
+5. **Build and push the API image**
+   \`\`\`bash
+   # Build the FastAPI backend image
+   docker build -f api/Dockerfile -t $REGION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/api:latest ./api
+   
+   # Push to Artifact Registry
+   docker push $REGION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/api:latest
+   \`\`\`
+
+#### Deploy to Cloud Run
+
+**Option 1: Automated Build and Deploy (Recommended)**
+
+Use the provided build script for a one-command deployment:
+
+\`\`\`bash
+# Linux/Mac
+./scripts/build-and-deploy.sh your-project-id europe-west1
+
+# Windows PowerShell
+.\scripts\build-and-deploy.ps1 your-project-id europe-west1
+\`\`\`
+
+**Option 2: Manual Deployment**
+
+1. **Update service.yaml with your project details**
+   Replace `PROJECT_ID` in `service.yaml` with your actual Google Cloud project ID:
+   \`\`\`bash
+   sed -i "s/PROJECT_ID/$PROJECT_ID/g" service.yaml
+   sed -i "s/gcr.io/$REGION-docker.pkg.dev/g" service.yaml
+   \`\`\`
+
+2. **Deploy the multi-container service**
+   \`\`\`bash
+   gcloud run services replace service.yaml \
+     --region=$REGION \
+     --allow-unauthenticated
+   \`\`\`
+
+3. **Get the service URL**
+   \`\`\`bash
+   gcloud run services describe data-viz-satellite \
+     --region=$REGION \
+     --format="value(status.url)"
+   \`\`\`
+
+#### Architecture Overview
+
+The multi-container deployment includes:
+
+- **Frontend Container (web)**: Next.js app running on port 8080
+  - Handles user interface and client-side interactions
+  - Communicates with API container via internal networking
+  - Environment: `NEXT_PUBLIC_API_URL=http://127.0.0.1:9000`
+  - Resources: 1-2 CPU, 1-2GB RAM
+
+- **API Container (api)**: FastAPI backend running on port 9000
+  - Processes data with Polars for high performance
+  - Handles large dataset operations (100K+ rows)
+  - Environment: `FRONTEND_URL=http://127.0.0.1:8080`
+  - Resources: 1-2 CPU, 2-4GB RAM (optimized for data processing)
+
+- **Internal Communication**: Containers communicate via localhost (127.0.0.1)
+- **External Access**: Only the frontend container (port 8080) receives external traffic
+- **Health Checks**: Both containers have startup, liveness, and readiness probes
+- **Auto-scaling**: Configured for up to 10 instances with 80 concurrent requests per instance
+
+#### Benefits of Multi-Container Architecture
+
+✅ **Separation of Concerns**: Frontend and backend can be developed, deployed, and scaled independently  
+✅ **Resource Optimization**: Each container gets resources tailored to its workload  
+✅ **Technology Flexibility**: Use the best technology for each component (Next.js + FastAPI)  
+✅ **Fault Isolation**: Issues in one container don't affect the other  
+✅ **Independent Scaling**: Scale data processing separately from UI serving  
+✅ **Cost Efficiency**: Pay only for the resources each component actually needs
+
+#### Monitoring and Logs
+
+\`\`\`bash
+# View service logs
+gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=data-viz-satellite" --limit=50
+
+# Monitor service metrics
+gcloud run services describe data-viz-satellite --region=$REGION
+\`\`\`
+
+### Alternative Deployment Options
+
+#### Vercel (Frontend Only)
 \`\`\`bash
 # Install Vercel CLI
 npm i -g vercel
@@ -500,33 +627,35 @@ vercel
 vercel --prod
 \`\`\`
 
-#### Docker Deployment
-\`\`\`dockerfile
-# Dockerfile example
-FROM node:18-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
-COPY . .
-RUN npm run build
-EXPOSE 3000
-CMD ["npm", "start"]
-\`\`\`
-
-#### Static Export (Optional)
+#### Docker Compose (Development)
 \`\`\`bash
-# For static hosting (GitHub Pages, Netlify, etc.)
-npm run build
-npm run export
+# Build and run both containers locally
+docker-compose up --build
+
+# Access the application
+# Frontend: http://localhost:3000
+# API: http://localhost:8000
 \`\`\`
 
 ### Environment Configuration
 
 #### Environment Variables
+
+For local development:
 \`\`\`bash
-# .env.local (optional)
-NEXT_PUBLIC_APP_NAME="Data Viz Satellite"
-NEXT_PUBLIC_ANALYTICS_ID="your-analytics-id"
+# .env.local
+NEXT_PUBLIC_API_URL=http://localhost:8000
+\`\`\`
+
+For Cloud Run deployment (automatically set in service.yaml):
+\`\`\`bash
+# Frontend container
+NEXT_PUBLIC_API_URL=http://127.0.0.1:9000
+PORT=8080
+
+# API container  
+FRONTEND_URL=http://127.0.0.1:8080
+PORT=9000
 \`\`\`
 
 #### Performance Monitoring
