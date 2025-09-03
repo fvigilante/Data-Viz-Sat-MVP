@@ -35,8 +35,11 @@ def run_nextjs():
     env = os.environ.copy()
     env["NEXT_PUBLIC_API_URL"] = "http://localhost:8000"
     
+    # Determine npm command based on OS
+    npm_cmd = "npm.cmd" if os.name == "nt" else "npm"
+    
     # Run Next.js dev server
-    return subprocess.Popen(["npm", "run", "dev"], env=env)
+    return subprocess.Popen([npm_cmd, "run", "dev"], env=env, shell=True)
 
 def main():
     """Main function to run both servers"""

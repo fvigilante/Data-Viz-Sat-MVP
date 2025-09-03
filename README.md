@@ -412,8 +412,14 @@ export const DegRowSchema = z.object({
 
 4. **Run both servers concurrently**
    \`\`\`bash
+   # Recommended: Single command to start both servers
    npm run dev:full
-   # or use the shell script
+   
+   # Alternative: Run servers individually
+   npm run dev:api    # FastAPI server on port 8000
+   npm run dev        # Next.js server on port 3000
+   
+   # Alternative: Use shell script (Linux/Mac)
    chmod +x scripts/dev.sh && ./scripts/dev.sh
    \`\`\`
 
@@ -711,6 +717,14 @@ const customPlotConfig = {
 ## 🐛 Troubleshooting
 
 ### Common Issues
+
+#### Development Server Issues
+**Problem**: `npm run dev:full` fails with "system cannot find the file specified"
+**Solution**: This is a Windows-specific issue with npm command detection. The script has been fixed to handle Windows properly. If issues persist, run servers individually:
+```bash
+npm run dev:api    # Terminal 1: FastAPI server
+npm run dev        # Terminal 2: Next.js server
+```
 
 #### Large Dataset Performance
 **Problem**: Slow rendering with large datasets
