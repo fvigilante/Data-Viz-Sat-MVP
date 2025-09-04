@@ -24,7 +24,19 @@ This pilot project serves as a technology evaluation platform for building scala
 - **Interactive Legend**: Toggle visibility of up-regulated, down-regulated, and non-significant metabolites
 - **Hover Tooltips**: Detailed metabolite information including ClassyFire annotations
 - **Export Capabilities**: Download plots as high-resolution PNG images and filtered CSV data
+- **Technology Explainers**: Interactive accordion sections explaining the technical architecture
 - **Responsive Design**: Optimized for desktop and tablet viewing
+
+### 🧬 Principal Component Analysis (PCA)
+- **3D Interactive Visualization**: Hardware-accelerated 3D scatter plots with Plotly.js WebGL
+- **Dynamic Group Management**: Toggle visibility of experimental groups with real-time plot updates
+- **Smart Performance Controls**: Safety limits prevent system crashes with large feature sets
+- **Dynamic Data Tables**: Automatically generated tables for each visible group
+- **Group-Specific Exports**: Individual CSV downloads for each experimental group
+- **Intelligent Caching**: Pre-computed PCA results with manual cache management
+- **Color Coordination**: Consistent color schemes between 3D plot and data tables
+- **Batch Effect Simulation**: Optional batch effect modeling for realistic data scenarios
+- **Scalable Architecture**: Handles up to 2K features safely with performance warnings
 
 ### 🔍 Multi-Omics Data Analysis Tools
 - **Universal Data Support**: Genomics (SNPs, GWAS), Transcriptomics (RNA-seq), Proteomics (abundance), Metabolomics (profiling)
@@ -41,6 +53,14 @@ This pilot project serves as a technology evaluation platform for building scala
 - **Authentication**: Integration with Sequentia's authentication and authorization systems
 - **Data Validation**: Enterprise-grade validation for various omics data schemas
 - **Error Handling**: Comprehensive error reporting with integration back to Hub interface
+
+### 🎓 Educational Features
+- **Interactive Technology Explainers**: Accordion-based sections explaining technical architecture
+- **Architecture Comparisons**: Clear explanations of client-side vs server-side vs FastAPI processing
+- **Performance Characteristics**: Detailed performance metrics and use case recommendations
+- **Technology Stack Details**: Comprehensive breakdown of technologies used in each approach
+- **Real-world Use Cases**: Practical examples of when to use each architecture
+- **Best Practices**: Guidelines for choosing the right approach for different scenarios
 
 ## 🏗️ Project Structure
 
@@ -71,12 +91,16 @@ This pilot project serves as a technology evaluation platform for building scala
 │   ├── VolcanoPlot.tsx         # Client-side interactive volcano plot component
 │   ├── ServerVolcanoPlot.tsx   # Server-side volcano plot component
 │   ├── FastAPIVolcanoPlot.tsx  # FastAPI + Polars volcano plot component
+│   ├── FastAPIPCAPlot.tsx      # PCA analysis with dynamic tables
+│   ├── TechExplainer.tsx       # Interactive technology architecture explainer
 │   ├── theme-provider.tsx      # Theme context provider
 │   ├── layout/                 # Layout and navigation components
 │   │   ├── Header.tsx          # Application header with branding
 │   │   ├── SidebarNav.tsx      # Navigation sidebar with routing
 │   │   └── Footer.tsx          # Application footer with GitHub link
 │   └── ui/                     # Reusable UI components (shadcn/ui)
+│       ├── accordion.tsx       # Collapsible content sections
+│       ├── badge.tsx           # Status and category badges
 │       ├── button.tsx          # Button component variants
 │       ├── card.tsx            # Card container components
 │       ├── input.tsx           # Form input components

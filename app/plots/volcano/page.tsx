@@ -16,6 +16,7 @@ import { Download, RotateCcw, Upload, Loader2, CheckCircle } from "lucide-react"
 import { parseCsv } from "@/lib/parseCsv"
 import type { DegRow } from "@/lib/schema"
 import dynamic from "next/dynamic"
+import TechExplainer from "@/components/TechExplainer"
 
 const VolcanoPlot = dynamic(() => import("@/components/VolcanoPlot"), { ssr: false })
 
@@ -716,6 +717,8 @@ export default function VolcanoPage() {
           )}
         </div>
       )}
+
+      <TechExplainer type="client" />
     </div>
   )
 }

@@ -13,6 +13,7 @@ import { Download, Upload, Loader2, RotateCcw } from "lucide-react"
 import { ServerVolcanoPlot } from "@/components/ServerVolcanoPlot"
 import { parseCsv } from "@/lib/parseCsv"
 import type { DegRow } from "@/lib/schema"
+import TechExplainer from "@/components/TechExplainer"
 
 function generateVolcanoData(size = 2000) {
   const metaboliteNames = [
@@ -777,6 +778,8 @@ export default function VolcanoServerPage() {
             </Card>
           </div>
         )}
+
+        <TechExplainer type="server" />
       </div>
     </div>
   )

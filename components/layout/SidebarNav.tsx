@@ -39,7 +39,7 @@ const navItems: NavItem[] = [
     href: "/plots/pca",
     icon: TrendingUp,
     disabled: false,
-    badge: "NEW",
+    // badge: "NEW",
   },
   {
     title: "Heatmap",

@@ -1,4 +1,5 @@
 import FastAPIVolcanoPlot from "@/components/FastAPIVolcanoPlot"
+import TechExplainer from "@/components/TechExplainer"
 
 export default function VolcanoFastAPIPage() {
   return (
@@ -20,6 +21,9 @@ export default function VolcanoFastAPIPage() {
 
       <div className="flex-1 bg-slate-50 overflow-auto">
         <FastAPIVolcanoPlot />
+        <div className="p-6">
+          <TechExplainer type="fastapi" />
+        </div>
       </div>
     </div>
   )

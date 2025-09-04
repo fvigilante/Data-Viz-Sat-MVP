@@ -3,11 +3,11 @@
 import { useState, useEffect, useCallback, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Download, RotateCcw, Loader2, CheckCircle, AlertCircle } from "lucide-react"
+import { Download, RotateCcw, Loader2, CheckCircle, AlertCircle, Trash2 } from "lucide-react"
 import dynamic from "next/dynamic"
 
 const Plot = dynamic(() => import("react-plotly.js"), { ssr: false })
@@ -58,7 +58,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 export default function FastAPIPCAPlot() {
   const [data, setData] = useState<PCADataPoint[]>([])
   const [explainedVariance, setExplainedVariance] = useState({ pc1: 0, pc2: 0, pc3: 0 })
-  const [stats, setStats] = useState({ total_samples: 0, total_features: 0, groups: [] })
+  const [stats, setStats] = useState({ total_samples: 0, total_features: 0, groups: [] as string[] })
   const [isDownsampled, setIsDownsampled] = useState(false)
   const [pointsBeforeSampling, setPointsBeforeSampling] = useState(0)
 
@@ -74,6 +74,24 @@ export default function FastAPIPCAPlot() {
   const [maxPoints, setMaxPoints] = useState(10000)
   const [addBatchEffect, setAddBatchEffect] = useState(false)
   const [noiseLevel, setNoiseLevel] = useState(0.1)
+
+  // Group visibility state
+  const [visibleGroups, setVisibleGroups] = useState<Set<string>>(new Set())
+
+  // Clear cache function
+  const clearCache = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/clear-cache`, {
+        method: 'POST'
+      })
+      if (response.ok) {
+        console.log('Cache cleared successfully')
+        // Optionally show a success message
+      }
+    } catch (err) {
+      console.error('Error clearing cache:', err)
+    }
+  }, [])
 
   const fetchPCAData = useCallback(async (params: PCAParams) => {
     setIsLoading(true)
@@ -117,6 +135,10 @@ export default function FastAPIPCAPlot() {
       setIsDownsampled(result.is_downsampled)
       setPointsBeforeSampling(result.points_before_sampling)
       setIsReady(true)
+
+      // Initialize visible groups when data loads
+      const uniqueGroups = new Set(result.data.map(point => point.group))
+      setVisibleGroups(uniqueGroups)
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Unknown error occurred"
@@ -168,12 +190,51 @@ export default function FastAPIPCAPlot() {
     setNoiseLevel(0.1)
   }, [])
 
+  // Performance warning
+  const isHighPerformanceLoad = useMemo(() => {
+    return (datasetSize > 10000 && nFeatures > 1000) || nFeatures > 2000
+  }, [datasetSize, nFeatures])
+
+  // Toggle group visibility
+  const toggleGroupVisibility = useCallback((group: string) => {
+    setVisibleGroups(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(group)) {
+        newSet.delete(group)
+      } else {
+        newSet.add(group)
+      }
+      return newSet
+    })
+  }, [])
+
+  // Get grouped data for tables
+  const groupedTableData = useMemo(() => {
+    if (!data.length) return {}
+    
+    return data.reduce((acc, point) => {
+      if (!acc[point.group]) {
+        acc[point.group] = []
+      }
+      acc[point.group].push(point)
+      return acc
+    }, {} as Record<string, PCADataPoint[]>)
+  }, [data])
+
+  // Get available groups
+  const availableGroups = useMemo(() => {
+    return Object.keys(groupedTableData).sort()
+  }, [groupedTableData])
+
   // Generate 3D plot data
   const plotData = useMemo(() => {
     if (!data.length) return []
 
+    // Filter data by visible groups
+    const filteredData = data.filter(point => visibleGroups.has(point.group))
+
     // Group data by group
-    const groupedData = data.reduce((acc, point) => {
+    const groupedData = filteredData.reduce((acc, point) => {
       if (!acc[point.group]) {
         acc[point.group] = []
       }
@@ -205,27 +266,27 @@ export default function FastAPIPCAPlot() {
         size: 6,
         opacity: 0.8
       },
-      text: points.map(p => 
+      text: points.map(p =>
         `Sample: ${p.sample_id}<br>Group: ${p.group}<br>PC1: ${p.pc1.toFixed(3)}<br>PC2: ${p.pc2.toFixed(3)}<br>PC3: ${p.pc3.toFixed(3)}`
       ),
       hovertemplate: "%{text}<extra></extra>"
     }))
-  }, [data])
+  }, [data, visibleGroups])
 
   const plotLayout = {
     title: `3D PCA Plot - ${data.length.toLocaleString()} samples${isDownsampled ? ` (downsampled from ${pointsBeforeSampling.toLocaleString()})` : ''}`,
     scene: {
-      xaxis: { 
+      xaxis: {
         title: `PC1 (${(explainedVariance.pc1 * 100).toFixed(1)}% variance)`,
         showgrid: true,
         gridcolor: '#e5e7eb'
       },
-      yaxis: { 
+      yaxis: {
         title: `PC2 (${(explainedVariance.pc2 * 100).toFixed(1)}% variance)`,
         showgrid: true,
         gridcolor: '#e5e7eb'
       },
-      zaxis: { 
+      zaxis: {
         title: `PC3 (${(explainedVariance.pc3 * 100).toFixed(1)}% variance)`,
         showgrid: true,
         gridcolor: '#e5e7eb'
@@ -268,8 +329,51 @@ export default function FastAPIPCAPlot() {
     URL.revokeObjectURL(url)
   }, [data])
 
+  const downloadGroupCSV = useCallback((group: string, groupData: PCADataPoint[]) => {
+    const headers = ["Sample ID", "Group", "PC1", "PC2", "PC3", "Batch"]
+    const csvContent = [
+      headers.join(","),
+      ...groupData.map(row =>
+        [
+          `"${row.sample_id}"`,
+          `"${row.group}"`,
+          row.pc1.toFixed(6),
+          row.pc2.toFixed(6),
+          row.pc3.toFixed(6),
+          `"${row.batch || ""}"`
+        ].join(",")
+      )
+    ].join("\n")
+
+    const blob = new Blob([csvContent], { type: "text/csv" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `pca_data_${group.toLowerCase().replace(/\s+/g, '_')}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }, [])
+
   return (
     <div className="p-6 space-y-6">
+      {/* Performance Warning */}
+      {isHighPerformanceLoad && (
+        <Card className="border-l-4 border-l-orange-500 bg-orange-50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="h-5 w-5 text-orange-500" />
+              <div>
+                <p className="font-medium text-sm text-orange-700">Performance Warning</p>
+                <p className="text-xs text-orange-600">
+                  High feature count ({nFeatures.toLocaleString()}) may cause system slowdown or crash.
+                  Consider using ≤1000 features for better performance.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Status Card */}
       {(isLoading || isReady || error) && (
         <Card className={`border-l-4 ${error ? 'border-l-red-500' : isReady ? 'border-l-green-500' : 'border-l-blue-500'}`}>
@@ -417,20 +521,13 @@ export default function FastAPIPCAPlot() {
                     1K
                   </Button>
                   <Button
-                    onClick={() => setNFeatures(5000)}
-                    variant={nFeatures === 5000 ? "default" : "outline"}
+                    onClick={() => setNFeatures(2000)}
+                    variant={nFeatures === 2000 ? "default" : "outline"}
                     size="sm"
                     disabled={isLoading}
+                    className="text-orange-600 border-orange-300"
                   >
-                    5K
-                  </Button>
-                  <Button
-                    onClick={() => setNFeatures(10000)}
-                    variant={nFeatures === 10000 ? "default" : "outline"}
-                    size="sm"
-                    disabled={isLoading}
-                  >
-                    10K
+                    2K ⚠️
                   </Button>
                 </div>
               </div>
@@ -553,14 +650,26 @@ export default function FastAPIPCAPlot() {
                     variant="outline"
                     size="sm"
                     disabled={isLoading}
+                    title="Reset Parameters"
                   >
                     <RotateCcw className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    onClick={clearCache}
+                    variant="outline"
+                    size="sm"
+                    disabled={isLoading}
+                    title="Clear Cache"
+                    className="text-red-600 hover:text-red-700"
+                  >
+                    <Trash2 className="h-4 w-4" />
                   </Button>
                   <Button
                     onClick={downloadCSV}
                     variant="outline"
                     size="sm"
                     disabled={isLoading || !data.length}
+                    title="Download CSV"
                   >
                     <Download className="h-4 w-4" />
                   </Button>
@@ -627,6 +736,136 @@ export default function FastAPIPCAPlot() {
           )}
         </CardContent>
       </Card>
+
+      {/* Group Selection Controls */}
+      {availableGroups.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">Group Visibility & Data Tables</CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="space-y-4">
+              {/* Group Toggle Buttons */}
+              <div className="flex flex-wrap gap-2">
+                <Label className="text-sm font-medium mr-4">Toggle Groups:</Label>
+                {availableGroups.map((group, index) => {
+                  const colors = [
+                    'bg-red-500', 'bg-blue-500', 'bg-green-500', 'bg-amber-500',
+                    'bg-violet-500', 'bg-pink-500', 'bg-cyan-500', 'bg-lime-500'
+                  ]
+                  const isVisible = visibleGroups.has(group)
+                  return (
+                    <Button
+                      key={group}
+                      onClick={() => toggleGroupVisibility(group)}
+                      variant={isVisible ? "default" : "outline"}
+                      size="sm"
+                      className={`${isVisible ? colors[index % colors.length] + ' text-white' : ''}`}
+                    >
+                      {group} ({groupedTableData[group]?.length || 0})
+                    </Button>
+                  )
+                })}
+              </div>
+
+              {/* Select All / Deselect All */}
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => setVisibleGroups(new Set(availableGroups))}
+                  variant="outline"
+                  size="sm"
+                >
+                  Show All Groups
+                </Button>
+                <Button
+                  onClick={() => setVisibleGroups(new Set())}
+                  variant="outline"
+                  size="sm"
+                >
+                  Hide All Groups
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Dynamic Tables for Each Visible Group */}
+      {Array.from(visibleGroups).sort().map((group, index) => {
+        const groupData = groupedTableData[group] || []
+        const colors = [
+          'border-red-500', 'border-blue-500', 'border-green-500', 'border-amber-500',
+          'border-violet-500', 'border-pink-500', 'border-cyan-500', 'border-lime-500'
+        ]
+        const bgColors = [
+          'bg-red-50', 'bg-blue-50', 'bg-green-50', 'bg-amber-50',
+          'bg-violet-50', 'bg-pink-50', 'bg-cyan-50', 'bg-lime-50'
+        ]
+
+        return (
+          <Card key={group} className={`border-l-4 ${colors[index % colors.length]} ${bgColors[index % bgColors.length]}`}>
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold flex items-center justify-between">
+                <span>{group} Data ({groupData.length} samples)</span>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => downloadGroupCSV(group, groupData)}
+                    variant="outline"
+                    size="sm"
+                    title={`Download ${group} data as CSV`}
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    onClick={() => toggleGroupVisibility(group)}
+                    variant="outline"
+                    size="sm"
+                    className="text-red-600 hover:text-red-700"
+                    title="Hide this table"
+                  >
+                    Hide Table
+                  </Button>
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left p-2 font-medium">Sample ID</th>
+                      <th className="text-left p-2 font-medium">PC1</th>
+                      <th className="text-left p-2 font-medium">PC2</th>
+                      <th className="text-left p-2 font-medium">PC3</th>
+                      {groupData.some(d => d.batch) && (
+                        <th className="text-left p-2 font-medium">Batch</th>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {groupData.slice(0, 50).map((point, idx) => (
+                      <tr key={point.sample_id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                        <td className="p-2 font-mono text-xs">{point.sample_id}</td>
+                        <td className="p-2 font-mono text-xs">{point.pc1.toFixed(4)}</td>
+                        <td className="p-2 font-mono text-xs">{point.pc2.toFixed(4)}</td>
+                        <td className="p-2 font-mono text-xs">{point.pc3.toFixed(4)}</td>
+                        {groupData.some(d => d.batch) && (
+                          <td className="p-2 font-mono text-xs">{point.batch || '-'}</td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {groupData.length > 50 && (
+                  <div className="mt-4 text-center text-sm text-muted-foreground">
+                    Showing first 50 of {groupData.length} samples
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )
+      })}
     </div>
   )
 }

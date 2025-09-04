@@ -525,10 +525,36 @@ async def pca_cache_status():
         "total_cached": len(_pca_cache)
     }
 
+@app.post("/api/clear-cache")
+async def clear_cache():
+    """Clear all cached data to free memory"""
+    global _data_cache, _pca_cache
+    
+    # Store counts before clearing
+    volcano_cache_count = len(_data_cache)
+    pca_cache_count = len(_pca_cache)
+    
+    # Clear all caches
+    _data_cache.clear()
+    _pca_cache.clear()
+    
+    # Also clear the LRU caches
+    get_cached_dataset.cache_clear()
+    generate_pca_dataset.cache_clear()
+    
+    return {
+        "message": "Cache cleared successfully",
+        "cleared": {
+            "volcano_datasets": volcano_cache_count,
+            "pca_datasets": pca_cache_count,
+            "total_cleared": volcano_cache_count + pca_cache_count
+        }
+    }
+
 @app.get("/api/pca-data", response_model=PCAResponse)
 async def get_pca_data(
     dataset_size: int = Query(1000, ge=100, le=100000),
-    n_features: int = Query(100, ge=10, le=10000),
+    n_features: int = Query(100, ge=10, le=2000),  # Reduced max features to prevent crashes
     n_groups: int = Query(3, ge=2, le=8),
     max_points: int = Query(10000, ge=100, le=50000),
     add_batch_effect: bool = Query(False),
@@ -538,6 +564,18 @@ async def get_pca_data(
     Generate and return PCA data with 3D coordinates
     """
     try:
+        # Safety check for performance-critical combinations
+        if dataset_size > 10000 and n_features > 1000:
+            raise HTTPException(
+                status_code=400, 
+                detail="High dataset size with high feature count may cause performance issues. Please reduce either dataset size (<10K) or features (<1K)."
+            )
+        
+        if n_features > 2000:
+            raise HTTPException(
+                status_code=400,
+                detail="Feature count exceeds safe limit (2000). Please reduce to prevent system overload."
+            )
         # Generate PCA dataset
         pca_data, explained_variance, stats = generate_pca_dataset(
             dataset_size, n_features, n_groups, add_batch_effect, noise_level
