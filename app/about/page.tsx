@@ -142,21 +142,21 @@ export default function AboutPage() {
             <div className="border border-purple-200 rounded-lg p-4 bg-purple-50/50">
               <div className="flex items-center gap-2 mb-3">
                 <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                  FastAPI + Python
+                  FastAPI + Polars
                 </Badge>
                 <span className="text-xs font-medium text-purple-800">High-Performance Backend</span>
               </div>
 
-              <h4 className="font-semibold text-purple-900 mb-2 text-sm">🔥 Maximum Performance</h4>
+              <h4 className="font-semibold text-purple-900 mb-2 text-sm">🔥 Maximum Performance + Smart Downsampling</h4>
               <ul className="space-y-1 text-xs text-purple-800">
-                <li><strong>Data Flow:</strong> Python API → Pandas → Server Filters → JSON</li>
-                <li><strong>Performance:</strong> Handles 1M+ points with server-side filtering</li>
-                <li><strong>Features:</strong> Advanced filtering, statistical processing</li>
-                <li><strong>Technology:</strong> FastAPI + Pandas + NumPy + Uvicorn</li>
+                <li><strong>Data Flow:</strong> Python API → Polars → Smart Sampling → JSON</li>
+                <li><strong>Performance:</strong> Handles 10M+ points with intelligent downsampling</li>
+                <li><strong>Features:</strong> Manual LOD controls, significance-aware sampling</li>
+                <li><strong>Technology:</strong> FastAPI + Polars + NumPy + Intelligent Caching</li>
               </ul>
 
               <div className="mt-3 p-2 bg-purple-100 rounded text-xs text-purple-700">
-                <strong>Best for:</strong> Massive datasets, scientific computing, production workloads
+                <strong>Best for:</strong> Massive datasets, production workloads, optimal user experience
               </div>
             </div>
           </div>
@@ -168,6 +168,8 @@ export default function AboutPage() {
               <h4 className="font-semibold text-slate-900 mb-3">📊 Visualization Features</h4>
               <ul className="space-y-2 text-sm text-slate-600">
                 <li>• Interactive volcano plots with WebGL acceleration (scattergl)</li>
+                <li>• Manual Level-of-Detail (LOD) controls with 10K/20K/50K/100K options</li>
+                <li>• Intelligent downsampling that prioritizes significant data points</li>
                 <li>• Real-time filtering with dual-range sliders</li>
                 <li>• Category-based point visibility controls</li>
                 <li>• Rich hover tooltips with metabolite details</li>
@@ -203,6 +205,8 @@ export default function AboutPage() {
             <div>
               <h4 className="font-semibold text-slate-900 mb-3">⚡ Performance</h4>
               <ul className="space-y-2 text-sm text-slate-600">
+                <li>• Intelligent downsampling preserves biological significance</li>
+                <li>• Manual LOD controls prevent zoom interference loops</li>
                 <li>• Memoized calculations for smooth interactions</li>
                 <li>• Dataset caching for instant switching</li>
                 <li>• Code splitting and dynamic imports</li>
@@ -361,11 +365,13 @@ export default function AboutPage() {
             <div className="bg-green-50 p-4 rounded-lg border border-green-200">
               <h4 className="font-semibold text-green-900 mb-2">🚀 Optimization Strategies</h4>
               <ul className="space-y-1 text-sm text-green-800">
+                <li>• Manual LOD system eliminates automatic zoom interference</li>
+                <li>• Intelligent downsampling prioritizes significant metabolites</li>
                 <li>• Memoized calculations with React.useMemo</li>
                 <li>• WebGL acceleration (scattergl) for 100K+ data points</li>
                 <li>• FastAPI + Polars for high-performance data processing</li>
                 <li>• Vectorized operations with NumPy (10x faster generation)</li>
-                <li>• Smart response sampling (20K point limit)</li>
+                <li>• Smart response sampling with user-controlled limits</li>
                 <li>• Dynamic imports for code splitting</li>
               </ul>
             </div>

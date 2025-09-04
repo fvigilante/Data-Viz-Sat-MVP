@@ -83,14 +83,18 @@ export default function FastAPIVolcanoPlot() {
         setLoadingType(isDatasetCached ? 'cached' : 'generating')
       }
 
+      const finalMaxPoints = params.max_points || maxPoints
       const queryParams = new URLSearchParams({
         p_value_threshold: params.p_value_threshold.toString(),
         log_fc_min: params.log_fc_min.toString(),
         log_fc_max: params.log_fc_max.toString(),
         dataset_size: params.dataset_size.toString(),
-        max_points: (params.max_points || maxPoints).toString(),
+        max_points: finalMaxPoints.toString(),
         ...(params.search_term && { search_term: params.search_term })
       })
+
+      console.log('API Request - finalMaxPoints:', finalMaxPoints, 'params.max_points:', params.max_points, 'maxPoints state:', maxPoints, 'datasetSize:', params.dataset_size)
+      console.log('Full query params:', queryParams.toString())
 
       const response = await fetch(`${API_BASE_URL}/api/volcano-data?${queryParams}`)
 
@@ -99,6 +103,8 @@ export default function FastAPIVolcanoPlot() {
       }
 
       const result: VolcanoResponse = await response.json()
+
+      console.log('API Response - data points received:', result.data.length, 'filtered_rows:', result.filtered_rows, 'is_downsampled:', result.is_downsampled, 'points_before_sampling:', result.points_before_sampling)
 
       setData(result.data)
       setStats(result.stats)
@@ -117,6 +123,30 @@ export default function FastAPIVolcanoPlot() {
       setLoadingType(null)
     }
   }, [maxPoints])
+
+  // Debug: Monitor maxPoints changes
+  useEffect(() => {
+    console.log('maxPoints state changed to:', maxPoints)
+  }, [maxPoints])
+
+  // Auto-adjust maxPoints when dataset size changes (only when dataset size changes, not maxPoints)
+  useEffect(() => {
+    // If current maxPoints is larger than dataset, adjust it
+    if (maxPoints > datasetSize) {
+      if (datasetSize >= 100000) {
+        setMaxPoints(100000)
+      } else if (datasetSize >= 50000) {
+        setMaxPoints(50000)
+      } else if (datasetSize >= 20000) {
+        setMaxPoints(20000)
+      } else if (datasetSize >= 10000) {
+        setMaxPoints(10000)
+      } else {
+        // For very small datasets, use the dataset size itself
+        setMaxPoints(datasetSize)
+      }
+    }
+  }, [datasetSize]) // Removed maxPoints from dependencies to prevent interference
 
   // Debounced API calls for filters and downsampling
   useEffect(() => {
@@ -438,154 +468,191 @@ export default function FastAPIVolcanoPlot() {
       {/* Controls Card */}
       <Card>
         <CardContent className="p-6">
-          <div className="grid grid-cols-1 lg:grid-cols-6 gap-4 items-end">
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Dataset Size</Label>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  onClick={() => setDatasetSize(10000)}
-                  variant={datasetSize === 10000 ? "default" : "outline"}
-                  size="sm"
-                  disabled={isLoading}
-                >
-                  10K
-                </Button>
-                <Button
-                  onClick={() => setDatasetSize(50000)}
-                  variant={datasetSize === 50000 ? "default" : "outline"}
-                  size="sm"
-                  disabled={isLoading}
-                >
-                  50K
-                </Button>
-                <Button
-                  onClick={() => setDatasetSize(100000)}
-                  variant={datasetSize === 100000 ? "default" : "outline"}
-                  size="sm"
-                  disabled={isLoading}
-                >
-                  100K
-                </Button>
-                <Button
-                  onClick={() => setDatasetSize(500000)}
-                  variant={datasetSize === 500000 ? "default" : "outline"}
-                  size="sm"
-                  disabled={isLoading}
-                >
-                  500K
-                </Button>
-                <Button
-                  onClick={() => setDatasetSize(1000000)}
-                  variant={datasetSize === 1000000 ? "default" : "outline"}
-                  size="sm"
-                  disabled={isLoading}
-                >
-                  1M
-                </Button>
-                <Button
-                  onClick={() => setDatasetSize(5000000)}
-                  variant={datasetSize === 5000000 ? "default" : "outline"}
-                  size="sm"
-                  disabled={isLoading}
-                >
-                  5M
-                </Button>
-                <Button
-                  onClick={() => setDatasetSize(10000000)}
-                  variant={datasetSize === 10000000 ? "default" : "outline"}
-                  size="sm"
-                  disabled={isLoading}
-                >
-                  10M
-                </Button>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">p-Value</Label>
-              <Input
-                type="number"
-                value={pValueInput}
-                onChange={(e) => handlePValueChange(e.target.value)}
-                onBlur={handlePValueBlur}
-                min={0}
-                max={1}
-                step={0.001}
-                className="w-full"
-                placeholder="0.000 - 1.000"
-                disabled={isLoading}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Search Metabolite</Label>
-              <Input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full"
-                placeholder="Enter metabolite name..."
-                disabled={isLoading}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Downsampling Level</Label>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  onClick={() => setMaxPoints(20000)}
-                  variant={maxPoints === 20000 ? "default" : "outline"}
-                  size="sm"
-                  disabled={isLoading}
-                >
-                  20K points
-                </Button>
-                <Button
-                  onClick={() => setMaxPoints(50000)}
-                  variant={maxPoints === 50000 ? "default" : "outline"}
-                  size="sm"
-                  disabled={isLoading}
-                >
-                  50K points
-                </Button>
-                <Button
-                  onClick={() => setMaxPoints(100000)}
-                  variant={maxPoints === 100000 ? "default" : "outline"}
-                  size="sm"
-                  disabled={isLoading}
-                >
-                  100K points
-                </Button>
-              </div>
-              <div className="text-xs text-muted-foreground">
-                Choose maximum points to display. Higher values show more detail but may be slower.
-              </div>
-            </div>
-
-            <div className="space-y-2 col-span-2">
-              <Label className="text-sm font-medium">Log2(FC) Range</Label>
-              <div className="px-3">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-xs font-semibold text-red-600 bg-red-50 px-2 py-1 rounded">
-                    {logFCRange[0].toFixed(2)}
-                  </span>
-                  <span className="text-xs font-semibold text-red-600 bg-red-50 px-2 py-1 rounded">
-                    {logFCRange[1].toFixed(2)}
-                  </span>
+          <div className="space-y-4">
+            {/* First Row: Dataset Size and Downsampling Level */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Dataset Size */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Dataset Size</Label>
+                <div className="grid grid-cols-4 gap-2">
+                  <Button
+                    onClick={() => setDatasetSize(10000)}
+                    variant={datasetSize === 10000 ? "default" : "outline"}
+                    size="sm"
+                    disabled={isLoading}
+                  >
+                    10K
+                  </Button>
+                  <Button
+                    onClick={() => setDatasetSize(50000)}
+                    variant={datasetSize === 50000 ? "default" : "outline"}
+                    size="sm"
+                    disabled={isLoading}
+                  >
+                    50K
+                  </Button>
+                  <Button
+                    onClick={() => setDatasetSize(100000)}
+                    variant={datasetSize === 100000 ? "default" : "outline"}
+                    size="sm"
+                    disabled={isLoading}
+                  >
+                    100K
+                  </Button>
+                  <Button
+                    onClick={() => setDatasetSize(500000)}
+                    variant={datasetSize === 500000 ? "default" : "outline"}
+                    size="sm"
+                    disabled={isLoading}
+                  >
+                    500K
+                  </Button>
+                  <Button
+                    onClick={() => setDatasetSize(1000000)}
+                    variant={datasetSize === 1000000 ? "default" : "outline"}
+                    size="sm"
+                    disabled={isLoading}
+                  >
+                    1M
+                  </Button>
+                  <Button
+                    onClick={() => setDatasetSize(5000000)}
+                    variant={datasetSize === 5000000 ? "default" : "outline"}
+                    size="sm"
+                    disabled={isLoading}
+                  >
+                    5M
+                  </Button>
+                  <Button
+                    onClick={() => setDatasetSize(10000000)}
+                    variant={datasetSize === 10000000 ? "default" : "outline"}
+                    size="sm"
+                    disabled={isLoading}
+                  >
+                    10M
+                  </Button>
                 </div>
-                <Slider
-                  value={logFCRange}
-                  onValueChange={setLogFCRange}
-                  min={-5}
-                  max={5}
-                  step={0.1}
+              </div>
+
+              {/* Downsampling Level */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Downsampling Level</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    onClick={() => {
+                      console.log('Button clicked: Setting maxPoints to 10000, current maxPoints:', maxPoints)
+                      setMaxPoints(10000)
+                    }}
+                    variant={maxPoints === 10000 ? "default" : "outline"}
+                    size="sm"
+                    disabled={isLoading || datasetSize < 10000}
+                    title={datasetSize < 10000 ? "Dataset too small for this downsampling level" : ""}
+                  >
+                    10K points
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      console.log('Button clicked: Setting maxPoints to 20000, current maxPoints:', maxPoints)
+                      setMaxPoints(20000)
+                    }}
+                    variant={maxPoints === 20000 ? "default" : "outline"}
+                    size="sm"
+                    disabled={isLoading || datasetSize < 20000}
+                    title={datasetSize < 20000 ? "Dataset too small for this downsampling level" : ""}
+                  >
+                    20K points
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      console.log('Setting maxPoints to 50000')
+                      setMaxPoints(50000)
+                    }}
+                    variant={maxPoints === 50000 ? "default" : "outline"}
+                    size="sm"
+                    disabled={isLoading || datasetSize < 50000}
+                    title={datasetSize < 50000 ? "Dataset too small for this downsampling level" : ""}
+                  >
+                    50K points
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      console.log('Setting maxPoints to 100000')
+                      setMaxPoints(100000)
+                    }}
+                    variant={maxPoints === 100000 ? "default" : "outline"}
+                    size="sm"
+                    disabled={isLoading || datasetSize < 100000}
+                    title={datasetSize < 100000 ? "Dataset too small for this downsampling level" : ""}
+                  >
+                    100K points
+                  </Button>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Current dataset: {datasetSize.toLocaleString()} points. 
+                  {filteredRows > 0 && ` Showing: ${filteredRows.toLocaleString()} points`}
+                  {isDownsampled && ` (downsampled from ${pointsBeforeSampling.toLocaleString()})`}
+                </div>
+              </div>
+            </div>
+
+            {/* Second Row: Filters */}
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-end">
+              {/* p-Value */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">p-Value</Label>
+                <Input
+                  type="number"
+                  value={pValueInput}
+                  onChange={(e) => handlePValueChange(e.target.value)}
+                  onBlur={handlePValueBlur}
+                  min={0}
+                  max={1}
+                  step={0.001}
                   className="w-full"
+                  placeholder="0.000 - 1.000"
                   disabled={isLoading}
                 />
-                <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                  <span>-5.00</span>
-                  <span>5.00</span>
+              </div>
+
+              {/* Log2(FC) Range */}
+              <div className="space-y-2 col-span-2">
+                <Label className="text-sm font-medium">Log2(FC) Range</Label>
+                <div className="px-3">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-xs font-semibold text-red-600 bg-red-50 px-2 py-1 rounded">
+                      {logFCRange[0].toFixed(2)}
+                    </span>
+                    <span className="text-xs font-semibold text-red-600 bg-red-50 px-2 py-1 rounded">
+                      {logFCRange[1].toFixed(2)}
+                    </span>
+                  </div>
+                  <Slider
+                    value={logFCRange}
+                    onValueChange={setLogFCRange}
+                    min={-5}
+                    max={5}
+                    step={0.1}
+                    className="w-full"
+                    disabled={isLoading}
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                    <span>-5.00</span>
+                    <span>5.00</span>
+                  </div>
                 </div>
+              </div>
+
+              {/* Search Metabolite */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Search Metabolite</Label>
+                <Input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full"
+                  placeholder="Enter metabolite name..."
+                  disabled={isLoading}
+                />
               </div>
             </div>
           </div>

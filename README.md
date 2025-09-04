@@ -16,9 +16,11 @@ This pilot project serves as a technology evaluation platform for building scala
 
 ### 📊 Interactive Volcano Plots
 - **Three-Tier Architecture**: Client-side, Next.js server-side, and FastAPI + Polars high-performance processing
+- **Manual Level-of-Detail (LOD) Controls**: User-selectable downsampling levels (10K/20K/50K/100K points)
+- **Intelligent Downsampling**: Significance-aware sampling that prioritizes biologically relevant data
 - **Real-time Filtering**: Adjustable p-value thresholds and log2(FC) ranges with live updates
 - **Server-Side Filtering**: All filtering operations (p-value, log2FC, search) handled by backend APIs
-- **High-Performance Backend**: FastAPI + Polars for processing 100K+ data points with 10x performance boost
+- **High-Performance Backend**: FastAPI + Polars for processing 10M+ data points with intelligent caching
 - **Interactive Legend**: Toggle visibility of up-regulated, down-regulated, and non-significant metabolites
 - **Hover Tooltips**: Detailed metabolite information including ClassyFire annotations
 - **Export Capabilities**: Download plots as high-resolution PNG images and filtered CSV data
@@ -142,16 +144,18 @@ Volcano plots are essential tools in metabolomics for visualizing differential e
 **Best for**: Large datasets (50K+ rows), production environments, performance-critical applications
 1. **High-Performance Backend**: FastAPI serves as the dedicated API layer
 2. **Polars Data Processing**: Lightning-fast DataFrame operations (10x faster than pandas)
-3. **Intelligent Caching System**: LRU cache stores generated datasets in memory for instant subsequent access
-4. **Vectorized Data Generation**: NumPy-based synthetic data creation for 10x faster generation
-5. **Server-Side Filtering**: All filtering (p-value, log2FC, search) handled by optimized API
-6. **Smart Response Sampling**: Limits responses to 20K points while prioritizing significant data
-7. **Lazy Evaluation**: Efficient query planning and parallel processing
-8. **Cache Warming**: Pre-generate common dataset sizes for instant loading
-9. **Memory Optimization**: Efficient handling of 100K+ to 10M+ data points
-10. **Scalable Architecture**: Production-ready with horizontal scaling capabilities
+3. **Manual LOD Controls**: User-selectable downsampling levels (10K/20K/50K/100K points)
+4. **Intelligent Downsampling**: Significance-aware sampling that preserves biological relevance
+5. **Intelligent Caching System**: LRU cache stores generated datasets in memory for instant subsequent access
+6. **Vectorized Data Generation**: NumPy-based synthetic data creation for 10x faster generation
+7. **Server-Side Filtering**: All filtering (p-value, log2FC, search) handled by optimized API
+8. **Adaptive Sampling**: Automatically adjusts sampling strategy based on dataset size
+9. **Lazy Evaluation**: Efficient query planning and parallel processing
+10. **Cache Warming**: Pre-generate common dataset sizes for instant loading
+11. **Memory Optimization**: Efficient handling of 100K+ to 10M+ data points
+12. **Scalable Architecture**: Production-ready with horizontal scaling capabilities
 
-**Performance**: ⚡⚡⚡ Optimized for large datasets, scientific computing performance with intelligent caching
+**Performance**: ⚡⚡⚡ Optimized for large datasets, scientific computing performance with intelligent caching and user-controlled LOD
 
 ### ClassyFire Integration
 The application integrates metabolite classification data:
