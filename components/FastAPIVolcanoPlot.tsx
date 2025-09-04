@@ -66,44 +66,10 @@ export default function FastAPIVolcanoPlot() {
   const [searchTerm, setSearchTerm] = useState("")
   const [datasetSize, setDatasetSize] = useState(10000)
   const [maxPoints, setMaxPoints] = useState(20000)
-  const [currentZoomLevel, setCurrentZoomLevel] = useState(1)
-  const [adaptiveLoading, setAdaptiveLoading] = useState(true)
-  const [currentViewport, setCurrentViewport] = useState<{ x: [number, number], y: [number, number] } | null>(null)
-  const [lodCache, setLodCache] = useState<Map<string, any>>(new Map())
-  const [isZooming, setIsZooming] = useState(false)
 
-  // Enhanced adaptive max points calculation - defined early to avoid dependency issues
-  const getAdaptiveMaxPoints = useCallback((zoomLevel: number) => {
-    if (!adaptiveLoading) return maxPoints
+  // Simple downsampling - user chooses max points directly
 
-    // Progressive LOD: 2K overview → 200K detailed
-    const basePoints = 2000
-    const maxAdaptivePoints = 200000
-
-    // Exponential scaling with smooth transitions
-    const zoomMultiplier = Math.min(Math.pow(zoomLevel, 1.5), 100)
-    const adaptivePoints = Math.floor(basePoints * zoomMultiplier)
-
-    return Math.min(adaptivePoints, maxAdaptivePoints)
-  }, [maxPoints, adaptiveLoading])
-
-  const fetchVolcanoData = useCallback(async (params: FilterParams, viewport?: { x: [number, number], y: [number, number] }) => {
-    // Create cache key for LOD caching
-    const cacheKey = `${params.dataset_size}-${params.p_value_threshold}-${params.log_fc_min}-${params.log_fc_max}-${params.search_term || ''}-${currentZoomLevel.toFixed(1)}-${viewport ? `${viewport.x[0]},${viewport.x[1]},${viewport.y[0]},${viewport.y[1]}` : 'full'}`
-
-    // Check cache first for zoom-based requests
-    if (adaptiveLoading && lodCache.has(cacheKey)) {
-      const cachedResult = lodCache.get(cacheKey)
-      setData(cachedResult.data)
-      setStats(cachedResult.stats)
-      setTotalRows(cachedResult.total_rows)
-      setFilteredRows(cachedResult.filtered_rows)
-      setPointsBeforeSampling(cachedResult.points_before_sampling)
-      setIsDownsampled(cachedResult.is_downsampled)
-      setIsReady(true)
-      return
-    }
-
+  const fetchVolcanoData = useCallback(async (params: FilterParams) => {
     setIsLoading(true)
     setError(null)
     setLoadingType('cached') // Default assumption
@@ -122,16 +88,8 @@ export default function FastAPIVolcanoPlot() {
         log_fc_min: params.log_fc_min.toString(),
         log_fc_max: params.log_fc_max.toString(),
         dataset_size: params.dataset_size.toString(),
-        max_points: (params.max_points || (adaptiveLoading ? getAdaptiveMaxPoints(currentZoomLevel) : maxPoints)).toString(),
-        zoom_level: currentZoomLevel.toString(),
-        lod_mode: adaptiveLoading.toString(),
-        ...(params.search_term && { search_term: params.search_term }),
-        ...(viewport && {
-          x_min: viewport.x[0].toString(),
-          x_max: viewport.x[1].toString(),
-          y_min: viewport.y[0].toString(),
-          y_max: viewport.y[1].toString()
-        })
+        max_points: (params.max_points || maxPoints).toString(),
+        ...(params.search_term && { search_term: params.search_term })
       })
 
       const response = await fetch(`${API_BASE_URL}/api/volcano-data?${queryParams}`)
@@ -141,18 +99,6 @@ export default function FastAPIVolcanoPlot() {
       }
 
       const result: VolcanoResponse = await response.json()
-
-      // Cache the result for future use
-      if (adaptiveLoading) {
-        const newCache = new Map(lodCache)
-        newCache.set(cacheKey, result)
-        // Limit cache size to prevent memory issues
-        if (newCache.size > 20) {
-          const firstKey = newCache.keys().next().value
-          newCache.delete(firstKey)
-        }
-        setLodCache(newCache)
-      }
 
       setData(result.data)
       setStats(result.stats)
@@ -170,26 +116,11 @@ export default function FastAPIVolcanoPlot() {
       setIsLoading(false)
       setLoadingType(null)
     }
-  }, [adaptiveLoading, currentZoomLevel, lodCache, maxPoints, getAdaptiveMaxPoints])
+  }, [maxPoints])
 
-  // Debounced API calls - separate from LOD zoom handling
-
+  // Debounced API calls for filters and downsampling
   useEffect(() => {
-
-
-    // Clear any existing filter timeout
-    if (filterTimeoutRef.current) {
-      clearTimeout(filterTimeoutRef.current)
-    }
-
-    // Clear zoom timeout to prevent conflicts
-    if (zoomTimeoutRef.current) {
-      clearTimeout(zoomTimeoutRef.current)
-      zoomTimeoutRef.current = null
-      setIsZooming(false)
-    }
-
-    filterTimeoutRef.current = setTimeout(() => {
+    const timeoutId = setTimeout(() => {
       fetchVolcanoData({
         p_value_threshold: pValue,
         log_fc_min: logFCRange[0],
@@ -198,33 +129,12 @@ export default function FastAPIVolcanoPlot() {
         dataset_size: datasetSize,
         max_points: maxPoints
       })
-      filterTimeoutRef.current = null
     }, 300) // 300ms debounce
 
-    return () => {
-      if (filterTimeoutRef.current) {
-        clearTimeout(filterTimeoutRef.current)
-      }
-    }
+    return () => clearTimeout(timeoutId)
   }, [pValue, logFCRange, searchTerm, datasetSize, maxPoints, fetchVolcanoData])
 
-  // Timeout refs for debouncing - prevents conflicts between filter and zoom updates
-  const zoomTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const filterTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-
-  // Simplified LOD - no automatic zoom detection, just manual control
-
-  // Cleanup timeouts on unmount
-  useEffect(() => {
-    return () => {
-      if (zoomTimeoutRef.current) {
-        clearTimeout(zoomTimeoutRef.current)
-      }
-      if (filterTimeoutRef.current) {
-        clearTimeout(filterTimeoutRef.current)
-      }
-    }
-  }, [])
+  // Simple downsampling - no complex timeout management needed
 
   const handlePValueChange = useCallback((value: string) => {
     setPValueInput(value)
@@ -295,7 +205,7 @@ export default function FastAPIVolcanoPlot() {
 
 
   const plotLayout = {
-    title: `Volcano Plot - ${filteredRows.toLocaleString()} points${isDownsampled ? ` (sampled from ${pointsBeforeSampling.toLocaleString()})` : ''}${isZooming ? ' 🔄' : ''}`,
+    title: `Volcano Plot - ${filteredRows.toLocaleString()} points${isDownsampled ? ` (downsampled from ${pointsBeforeSampling.toLocaleString()})` : ''}`,
     xaxis: { title: "Log2(Fold Change)" },
     yaxis: { title: "-log10(p-value)" },
     hovermode: "closest" as const,
@@ -620,99 +530,35 @@ export default function FastAPIVolcanoPlot() {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-sm font-medium">Detail Level</Label>
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="adaptive-loading"
-                    checked={adaptiveLoading}
-                    onChange={(e) => setAdaptiveLoading(e.target.checked)}
-                    disabled={isLoading}
-                    className="rounded"
-                  />
-                  <Label htmlFor="adaptive-loading" className="text-sm">
-                    Adaptive zoom loading
-                  </Label>
-                </div>
-                {!adaptiveLoading && (
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      onClick={() => setMaxPoints(1000)}
-                      variant={maxPoints === 1000 ? "default" : "outline"}
-                      size="sm"
-                      disabled={isLoading}
-                    >
-                      1K
-                    </Button>
-                    <Button
-                      onClick={() => setMaxPoints(5000)}
-                      variant={maxPoints === 5000 ? "default" : "outline"}
-                      size="sm"
-                      disabled={isLoading}
-                    >
-                      5K
-                    </Button>
-                    <Button
-                      onClick={() => setMaxPoints(20000)}
-                      variant={maxPoints === 20000 ? "default" : "outline"}
-                      size="sm"
-                      disabled={isLoading}
-                    >
-                      20K
-                    </Button>
-                    <Button
-                      onClick={() => setMaxPoints(50000)}
-                      variant={maxPoints === 50000 ? "default" : "outline"}
-                      size="sm"
-                      disabled={isLoading}
-                    >
-                      50K
-                    </Button>
-                  </div>
-                )}
-                {adaptiveLoading && (
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        onClick={() => {
-                          setMaxPoints(2000)
-                          // Trigger immediate reload with low detail
-                        }}
-                        variant={maxPoints === 2000 ? "default" : "outline"}
-                        size="sm"
-                        disabled={isLoading}
-                      >
-                        Overview (2K)
-                      </Button>
-                      <Button
-                        onClick={() => {
-                          setMaxPoints(20000)
-                          // Trigger immediate reload with medium detail
-                        }}
-                        variant={maxPoints === 20000 ? "default" : "outline"}
-                        size="sm"
-                        disabled={isLoading}
-                      >
-                        Medium (20K)
-                      </Button>
-                      <Button
-                        onClick={() => {
-                          setMaxPoints(100000)
-                          // Trigger immediate reload with high detail
-                        }}
-                        variant={maxPoints === 100000 ? "default" : "outline"}
-                        size="sm"
-                        disabled={isLoading}
-                      >
-                        Detailed (100K)
-                      </Button>
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Manual LOD control - zoom freely, then select detail level | Cache: {lodCache.size} entries
-                    </div>
-                  </div>
-                )}
+              <Label className="text-sm font-medium">Downsampling Level</Label>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  onClick={() => setMaxPoints(20000)}
+                  variant={maxPoints === 20000 ? "default" : "outline"}
+                  size="sm"
+                  disabled={isLoading}
+                >
+                  20K points
+                </Button>
+                <Button
+                  onClick={() => setMaxPoints(50000)}
+                  variant={maxPoints === 50000 ? "default" : "outline"}
+                  size="sm"
+                  disabled={isLoading}
+                >
+                  50K points
+                </Button>
+                <Button
+                  onClick={() => setMaxPoints(100000)}
+                  variant={maxPoints === 100000 ? "default" : "outline"}
+                  size="sm"
+                  disabled={isLoading}
+                >
+                  100K points
+                </Button>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Choose maximum points to display. Higher values show more detail but may be slower.
               </div>
             </div>
 
