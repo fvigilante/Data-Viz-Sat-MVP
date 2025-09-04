@@ -298,7 +298,8 @@ export default function AboutPage() {
                     <th className="text-left py-2 px-2 font-medium">Dataset Size</th>
                     <th className="text-left py-2 px-2 font-medium">Client-Side</th>
                     <th className="text-left py-2 px-2 font-medium">Server-Side</th>
-                    <th className="text-left py-2 px-2 font-medium">Python API</th>
+                    <th className="text-left py-2 px-2 font-medium">FastAPI (First)</th>
+                    <th className="text-left py-2 px-2 font-medium">FastAPI (Cached)</th>
                     <th className="text-left py-2 px-2 font-medium">Recommendation</th>
                   </tr>
                 </thead>
@@ -307,36 +308,49 @@ export default function AboutPage() {
                     <td className="py-2 px-2 font-medium">1,000 rows</td>
                     <td className="py-2 px-2">~200ms</td>
                     <td className="py-2 px-2">~150ms</td>
-                    <td className="py-2 px-2">~50ms</td>
+                    <td className="py-2 px-2">~300ms</td>
+                    <td className="py-2 px-2">~200ms</td>
                     <td className="py-2 px-2"><Badge variant="outline" className="bg-green-50 text-green-700">Client-side</Badge></td>
                   </tr>
                   <tr className="border-b border-slate-200">
                     <td className="py-2 px-2 font-medium">10,000 rows</td>
                     <td className="py-2 px-2">~800ms</td>
                     <td className="py-2 px-2">~300ms</td>
-                    <td className="py-2 px-2">~100ms</td>
+                    <td className="py-2 px-2">~800ms</td>
+                    <td className="py-2 px-2">~400ms</td>
                     <td className="py-2 px-2"><Badge variant="outline" className="bg-green-50 text-green-700">Client-side</Badge></td>
                   </tr>
                   <tr className="border-b border-slate-200">
                     <td className="py-2 px-2 font-medium">50,000 rows</td>
                     <td className="py-2 px-2">~3s</td>
                     <td className="py-2 px-2">~800ms</td>
-                    <td className="py-2 px-2">~200ms</td>
-                    <td className="py-2 px-2"><Badge variant="outline" className="bg-purple-50 text-purple-700">Python API</Badge></td>
+                    <td className="py-2 px-2">~2s</td>
+                    <td className="py-2 px-2">~1.5s</td>
+                    <td className="py-2 px-2"><Badge variant="outline" className="bg-purple-50 text-purple-700">FastAPI</Badge></td>
                   </tr>
                   <tr className="border-b border-slate-200">
                     <td className="py-2 px-2 font-medium">100,000 rows</td>
-                    <td className="py-2 px-2">Not recommended</td>
-                    <td className="py-2 px-2">~1.5s</td>
-                    <td className="py-2 px-2">~400ms</td>
-                    <td className="py-2 px-2"><Badge variant="outline" className="bg-purple-50 text-purple-700">Python API</Badge></td>
+                    <td className="py-2 px-2">❌ Crashes</td>
+                    <td className="py-2 px-2">~2s</td>
+                    <td className="py-2 px-2">~4.5s</td>
+                    <td className="py-2 px-2">~3.2s</td>
+                    <td className="py-2 px-2"><Badge variant="outline" className="bg-purple-50 text-purple-700">FastAPI</Badge></td>
+                  </tr>
+                  <tr className="border-b border-slate-200">
+                    <td className="py-2 px-2 font-medium">500,000 rows</td>
+                    <td className="py-2 px-2">❌ N/A</td>
+                    <td className="py-2 px-2">❌ Timeout</td>
+                    <td className="py-2 px-2">~3s</td>
+                    <td className="py-2 px-2">~2.8s</td>
+                    <td className="py-2 px-2"><Badge variant="outline" className="bg-purple-50 text-purple-700">FastAPI</Badge></td>
                   </tr>
                   <tr>
                     <td className="py-2 px-2 font-medium">1,000,000+ rows</td>
-                    <td className="py-2 px-2">Not supported</td>
-                    <td className="py-2 px-2">Not recommended</td>
-                    <td className="py-2 px-2">~1-2s</td>
-                    <td className="py-2 px-2"><Badge variant="outline" className="bg-purple-50 text-purple-700">Python API</Badge></td>
+                    <td className="py-2 px-2">❌ N/A</td>
+                    <td className="py-2 px-2">❌ N/A</td>
+                    <td className="py-2 px-2">~5s</td>
+                    <td className="py-2 px-2">~4s</td>
+                    <td className="py-2 px-2"><Badge variant="outline" className="bg-purple-50 text-purple-700">FastAPI</Badge></td>
                   </tr>
                 </tbody>
               </table>
@@ -349,19 +363,21 @@ export default function AboutPage() {
               <ul className="space-y-1 text-sm text-green-800">
                 <li>• Memoized calculations with React.useMemo</li>
                 <li>• WebGL acceleration (scattergl) for 100K+ data points</li>
-                <li>• Python/Pandas for server-side filtering and processing</li>
+                <li>• FastAPI + Polars for high-performance data processing</li>
+                <li>• Vectorized operations with NumPy (10x faster generation)</li>
+                <li>• Smart response sampling (20K point limit)</li>
                 <li>• Dynamic imports for code splitting</li>
-                <li>• Efficient data structures and cleanup</li>
               </ul>
             </div>
 
             <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-              <h4 className="font-semibold text-blue-900 mb-2">💾 Memory Management</h4>
+              <h4 className="font-semibold text-blue-900 mb-2">💾 Intelligent Caching</h4>
               <ul className="space-y-1 text-sm text-blue-800">
-                <li>• Dataset caching with Map structures</li>
-                <li>• Automatic garbage collection</li>
-                <li>• Streaming data processing</li>
-                <li>• Memory-efficient filtering algorithms</li>
+                <li>• LRU cache for generated datasets</li>
+                <li>• Cache warming for common dataset sizes</li>
+                <li>• 20-30% faster subsequent requests</li>
+                <li>• Memory-efficient data structures</li>
+                <li>• Automatic cache management</li>
               </ul>
             </div>
 

@@ -24,7 +24,7 @@ const navItems = [
     href: "/plots/volcano-fastapi",
     icon: Zap,
     disabled: false,
-    badge: "NEW",
+    // badge: "NEW",
   },
   {
     title: "PCA",

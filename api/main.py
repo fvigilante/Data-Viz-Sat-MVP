@@ -5,7 +5,9 @@ from typing import Optional, List
 import polars as pl
 import json
 import os
+import numpy as np
 from pathlib import Path
+from functools import lru_cache
 
 app = FastAPI(title="Data Viz Satellite API", version="1.0.0")
 
@@ -27,6 +29,12 @@ class FilterParams(BaseModel):
     log_fc_max: float = 0.5
     search_term: Optional[str] = None
     dataset_size: int = 10000
+    max_points: int = 50000  # Limit response size for performance
+    # Zoom-based LOD parameters
+    zoom_level: float = 1.0
+    x_range: Optional[List[float]] = None  # [min, max] for visible X range
+    y_range: Optional[List[float]] = None  # [min, max] for visible Y range
+    lod_mode: bool = True  # Enable level-of-detail loading
 
 class VolcanoDataPoint(BaseModel):
     gene: str
@@ -41,9 +49,20 @@ class VolcanoResponse(BaseModel):
     stats: dict
     total_rows: int
     filtered_rows: int
+    points_before_sampling: int
+    is_downsampled: bool
 
-def generate_synthetic_data(size: int) -> pl.DataFrame:
-    """Generate synthetic metabolomics data using Polars"""
+# Global cache for generated datasets
+_data_cache = {}
+
+@lru_cache(maxsize=10)
+def get_cached_dataset(size: int) -> pl.DataFrame:
+    """Generate and cache synthetic metabolomics data using vectorized operations"""
+    
+    if size in _data_cache:
+        return _data_cache[size]
+    
+    print(f"Generating new dataset of size {size}...")
     
     metabolite_names = [
         "1,3-Isoquinolinediol", "3,4-Dihydro-3-oxo-2H-(1,4)-benzoxazin-2-ylacetic acid",
@@ -66,32 +85,49 @@ def generate_synthetic_data(size: int) -> pl.DataFrame:
         "Steroids and steroid derivatives", "Others", "Purine nucleosides"
     ]
     
-    # Generate data using Polars expressions for better performance
-    import random
+    # Use numpy for vectorized operations - much faster than Python loops
+    np.random.seed(42)  # For reproducible results
     
-    data = []
-    for i in range(size):
-        log_fc = (random.random() - 0.5) * 8  # Range -4 to 4
-        
-        # Realistic p-value distribution based on fold change
-        if abs(log_fc) > 1.5:
-            p_value = random.random() * 0.1
-        elif abs(log_fc) > 0.8:
-            p_value = random.random() * 0.3
-        else:
-            p_value = random.random() * 0.8 + 0.2
-            
-        gene_name = metabolite_names[i % len(metabolite_names)] if i < len(metabolite_names) else f"Metabolite_{i + 1}"
-        
-        data.append({
-            "gene": gene_name,
-            "logFC": round(log_fc, 4),
-            "padj": round(p_value, 6),
-            "classyfireSuperclass": random.choice(superclasses),
-            "classyfireClass": random.choice(classes)
-        })
+    # Generate log fold changes using normal distribution
+    log_fc = np.random.normal(0, 1.5, size).round(4)
     
-    return pl.DataFrame(data)
+    # Generate p-values based on fold change (more realistic distribution)
+    abs_log_fc = np.abs(log_fc)
+    p_values = np.where(
+        abs_log_fc > 1.5,
+        np.random.uniform(0, 0.1, size),
+        np.where(
+            abs_log_fc > 0.8,
+            np.random.uniform(0, 0.3, size),
+            np.random.uniform(0.2, 1.0, size)
+        )
+    ).round(6)
+    
+    # Generate gene names efficiently
+    gene_names = [
+        metabolite_names[i % len(metabolite_names)] if i < len(metabolite_names) 
+        else f"Metabolite_{i + 1}" 
+        for i in range(size)
+    ]
+    
+    # Generate classifications using numpy choice for efficiency
+    superclass_indices = np.random.choice(len(superclasses), size)
+    class_indices = np.random.choice(len(classes), size)
+    
+    # Create DataFrame directly with all data
+    df = pl.DataFrame({
+        "gene": gene_names,
+        "logFC": log_fc,
+        "padj": p_values,
+        "classyfireSuperclass": [superclasses[i] for i in superclass_indices],
+        "classyfireClass": [classes[i] for i in class_indices]
+    })
+    
+    # Cache the result
+    _data_cache[size] = df
+    print(f"Dataset of size {size} generated and cached")
+    
+    return df
 
 def categorize_points(df: pl.DataFrame, p_threshold: float, log_fc_min: float, log_fc_max: float) -> pl.DataFrame:
     """Categorize data points using Polars expressions for optimal performance"""
@@ -107,6 +143,74 @@ def categorize_points(df: pl.DataFrame, p_threshold: float, log_fc_min: float, l
         .alias("category")
     ])
 
+def apply_spatial_filter(df: pl.DataFrame, x_range: Optional[List[float]], y_range: Optional[List[float]]) -> pl.DataFrame:
+    """Apply spatial filtering based on visible plot area"""
+    if not x_range or not y_range:
+        return df
+    
+    # Convert p-values to -log10 for Y filtering
+    df_with_y = df.with_columns([
+        (-pl.col("padj").log10()).alias("neg_log_padj")
+    ])
+    
+    # Add buffer around visible area (20% on each side)
+    x_buffer = (x_range[1] - x_range[0]) * 0.2
+    y_buffer = (y_range[1] - y_range[0]) * 0.2
+    
+    return df_with_y.filter(
+        (pl.col("logFC") >= (x_range[0] - x_buffer)) &
+        (pl.col("logFC") <= (x_range[1] + x_buffer)) &
+        (pl.col("neg_log_padj") >= (y_range[0] - y_buffer)) &
+        (pl.col("neg_log_padj") <= (y_range[1] + y_buffer))
+    ).drop("neg_log_padj")
+
+def get_lod_max_points(zoom_level: float, base_points: int = 2000) -> int:
+    """Calculate adaptive max points based on zoom level"""
+    # Exponential scaling: 2K at zoom 1x, up to 200K at high zoom
+    max_adaptive_points = 200000
+    zoom_multiplier = min(zoom_level ** 1.5, 100)  # Cap at 100x multiplier
+    
+    return min(int(base_points * zoom_multiplier), max_adaptive_points)
+
+def intelligent_sampling(df: pl.DataFrame, max_points: int, zoom_level: float) -> pl.DataFrame:
+    """Intelligent sampling that prioritizes significant points and adapts to zoom level"""
+    if len(df) <= max_points:
+        return df
+    
+    # Separate by significance
+    significant_df = df.filter(pl.col("category") != "non_significant")
+    non_significant_df = df.filter(pl.col("category") == "non_significant")
+    
+    # At higher zoom levels, include more non-significant points for context
+    sig_ratio = max(0.6 - (zoom_level - 1) * 0.1, 0.3)  # 60% significant at 1x, 30% at 4x+
+    
+    sig_points = min(int(max_points * sig_ratio), len(significant_df))
+    non_sig_points = max_points - sig_points
+    
+    # Sample significant points (keep all if possible)
+    if len(significant_df) <= sig_points:
+        sampled_sig = significant_df
+        non_sig_points = max_points - len(significant_df)
+    else:
+        # Prioritize extreme values for significant points
+        up_df = significant_df.filter(pl.col("category") == "up").sort("logFC", descending=True)
+        down_df = significant_df.filter(pl.col("category") == "down").sort("logFC")
+        
+        up_sample = min(sig_points // 2, len(up_df))
+        down_sample = sig_points - up_sample
+        
+        sampled_sig = pl.concat([
+            up_df.head(up_sample),
+            down_df.head(down_sample)
+        ])
+    
+    # Sample non-significant points randomly
+    if non_sig_points > 0 and len(non_significant_df) > 0:
+        sampled_non_sig = non_significant_df.sample(min(non_sig_points, len(non_significant_df)))
+        return pl.concat([sampled_sig, sampled_non_sig])
+    else:
+        return sampled_sig
+
 @app.get("/")
 async def root():
     return {"message": "Data Viz Satellite API", "version": "1.0.0"}
@@ -119,14 +223,44 @@ async def health_check():
 async def readiness_check():
     return {"status": "ready"}
 
+@app.post("/api/warm-cache")
+async def warm_cache(sizes: List[int] = [10000, 50000, 100000, 500000, 1000000]):
+    """
+    Pre-generate and cache datasets for faster subsequent requests
+    """
+    try:
+        cached_sizes = []
+        for size in sizes:
+            if size <= 10000000:  # Safety limit
+                get_cached_dataset(size)
+                cached_sizes.append(size)
+        
+        return {
+            "message": "Cache warmed successfully",
+            "cached_sizes": cached_sizes,
+            "total_cached": len(_data_cache)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error warming cache: {str(e)}")
+
+@app.get("/api/cache-status")
+async def cache_status():
+    """
+    Get current cache status
+    """
+    return {
+        "cached_datasets": list(_data_cache.keys()),
+        "total_cached": len(_data_cache)
+    }
+
 @app.post("/api/volcano-data", response_model=VolcanoResponse)
 async def get_volcano_data(filters: FilterParams):
     """
     Get filtered volcano plot data with server-side processing using Polars
     """
     try:
-        # Generate synthetic data
-        df = generate_synthetic_data(filters.dataset_size)
+        # Get cached synthetic data
+        df = get_cached_dataset(filters.dataset_size)
         total_rows = len(df)
         
         # Apply search filter if provided
@@ -162,16 +296,44 @@ async def get_volcano_data(filters: FilterParams):
             "non_significant": stats_dict.get("non_significant", 0)
         }
         
-        # Convert to list of dictionaries for JSON response
-        data_points = [
-            VolcanoDataPoint(**row) for row in df.to_dicts()
-        ]
+        # Apply spatial filtering if LOD mode is enabled and ranges are provided
+        if filters.lod_mode and filters.x_range and filters.y_range:
+            df = apply_spatial_filter(df, filters.x_range, filters.y_range)
+        
+        # Determine max points based on LOD mode
+        if filters.lod_mode:
+            effective_max_points = get_lod_max_points(filters.zoom_level)
+        else:
+            effective_max_points = filters.max_points
+        
+        # Intelligent sampling with LOD considerations
+        points_before_sampling = len(df)
+        is_downsampled = len(df) > effective_max_points
+        
+        if is_downsampled:
+            df = intelligent_sampling(df, effective_max_points, filters.zoom_level)
+        
+        # Convert to list of dictionaries for JSON response - optimized
+        data_points = []
+        if len(df) > 0:
+            data_dicts = df.to_dicts()
+            for row in data_dicts:
+                data_points.append(VolcanoDataPoint(
+                    gene=row["gene"],
+                    logFC=row["logFC"],
+                    padj=row["padj"],
+                    classyfireSuperclass=row["classyfireSuperclass"],
+                    classyfireClass=row["classyfireClass"],
+                    category=row["category"]
+                ))
         
         return VolcanoResponse(
             data=data_points,
             stats=stats,
             total_rows=total_rows,
-            filtered_rows=len(df)
+            filtered_rows=len(data_points),  # Actual number of points returned (after downsampling)
+            points_before_sampling=points_before_sampling,
+            is_downsampled=is_downsampled
         )
         
     except Exception as e:
@@ -183,17 +345,34 @@ async def get_volcano_data_get(
     log_fc_min: float = Query(-0.5, ge=-10.0, le=10.0),
     log_fc_max: float = Query(0.5, ge=-10.0, le=10.0),
     search_term: Optional[str] = Query(None),
-    dataset_size: int = Query(10000, ge=100, le=1000000)
+    dataset_size: int = Query(10000, ge=100, le=10000000),
+    max_points: int = Query(50000, ge=1000, le=200000),
+    # LOD parameters
+    zoom_level: float = Query(1.0, ge=0.1, le=100.0),
+    x_min: Optional[float] = Query(None),
+    x_max: Optional[float] = Query(None),
+    y_min: Optional[float] = Query(None),
+    y_max: Optional[float] = Query(None),
+    lod_mode: bool = Query(True)
 ):
     """
     GET endpoint for volcano data with query parameters
     """
+    # Construct ranges if provided
+    x_range = [x_min, x_max] if x_min is not None and x_max is not None else None
+    y_range = [y_min, y_max] if y_min is not None and y_max is not None else None
+    
     filters = FilterParams(
         p_value_threshold=p_value_threshold,
         log_fc_min=log_fc_min,
         log_fc_max=log_fc_max,
         search_term=search_term,
-        dataset_size=dataset_size
+        dataset_size=dataset_size,
+        max_points=max_points,
+        zoom_level=zoom_level,
+        x_range=x_range,
+        y_range=y_range,
+        lod_mode=lod_mode
     )
     
     return await get_volcano_data(filters)

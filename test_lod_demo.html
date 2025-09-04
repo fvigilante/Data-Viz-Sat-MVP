@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Level-of-Detail (LOD) Volcano Plot Demo</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .demo-container { display: flex; gap: 20px; }
+        .plot-container { flex: 1; }
+        .controls { width: 300px; padding: 20px; background: #f5f5f5; border-radius: 8px; }
+        .info-panel { margin-top: 20px; padding: 15px; background: #e3f2fd; border-radius: 8px; }
+        .zoom-indicator { font-size: 18px; font-weight: bold; color: #1976d2; }
+        .performance-stats { margin-top: 10px; font-size: 12px; color: #666; }
+        button { margin: 5px; padding: 8px 12px; cursor: pointer; }
+        .active { background: #1976d2; color: white; }
+    </style>
+</head>
+<body>
+    <h1>🔬 Adaptive Level-of-Detail Volcano Plot</h1>
+    <p>This demo shows how the plot dynamically loads more data points as you zoom in for detailed exploration.</p>
+    
+    <div class="demo-container">
+        <div class="plot-container">
+            <div id="volcano-plot" style="width:100%;height:600px;"></div>
+        </div>
+        
+        <div class="controls">
+            <h3>Dataset Size</h3>
+            <button onclick="setDatasetSize(50000)" id="btn-50k">50K</button>
+            <button onclick="setDatasetSize(100000)" id="btn-100k" class="active">100K</button>
+            <button onclick="setDatasetSize(500000)" id="btn-500k">500K</button>
+            <button onclick="setDatasetSize(1000000)" id="btn-1m">1M</button>
+            
+            <h3>LOD Mode</h3>
+            <button onclick="toggleLOD()" id="btn-lod" class="active">LOD Enabled</button>
+            
+            <div class="info-panel">
+                <div class="zoom-indicator" id="zoom-level">Zoom: 1.0x</div>
+                <div id="point-count">Points: Loading...</div>
+                <div id="performance-info" class="performance-stats"></div>
+                
+                <h4>How it works:</h4>
+                <ul style="font-size: 12px;">
+                    <li><strong>Overview (1x):</strong> 2K points for fast initial load</li>
+                    <li><strong>Medium zoom (2-5x):</strong> 8K-50K points</li>
+                    <li><strong>Detailed zoom (5x+):</strong> Up to 200K points</li>
+                    <li><strong>Spatial filtering:</strong> Only loads visible area + buffer</li>
+                    <li><strong>Smart caching:</strong> Avoids redundant requests</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentDatasetSize = 100000;
+        let lodEnabled = true;
+        let currentZoom = 1.0;
+        let loadTimes = [];
+
+        async function loadVolcanoData(zoomLevel = 1.0, viewport = null) {
+            const startTime = performance.now();
+            
+            const params = new URLSearchParams({
+                dataset_size: currentDatasetSize.toString(),
+                p_value_threshold: '0.05',
+                log_fc_min: '-0.5',
+                log_fc_max: '0.5',
+                zoom_level: zoomLevel.toString(),
+                lod_mode: lodEnabled.toString()
+            });
+
+            // Add viewport parameters if provided
+            if (viewport && lodEnabled) {
+                params.append('x_min', viewport.x[0].toString());
+                params.append('x_max', viewport.x[1].toString());
+                params.append('y_min', viewport.y[0].toString());
+                params.append('y_max', viewport.y[1].toString());
+            }
+
+            try {
+                const response = await fetch(`http://localhost:8000/api/volcano-data?${params}`);
+                const data = await response.json();
+                
+                const loadTime = performance.now() - startTime;
+                loadTimes.push(loadTime);
+                
+                updatePlot(data, zoomLevel, loadTime);
+                updateInfo(data, loadTime);
+                
+            } catch (error) {
+                console.error('Error loading data:', error);
+                document.getElementById('point-count').textContent = 'Error loading data';
+            }
+        }
+
+        function updatePlot(data, zoomLevel, loadTime) {
+            const upRegulated = data.data.filter(d => d.category === "up");
+            const downRegulated = data.data.filter(d => d.category === "down");
+            const nonSignificant = data.data.filter(d => d.category === "non_significant");
+
+            const traces = [
+                {
+                    x: upRegulated.map(d => d.logFC),
+                    y: upRegulated.map(d => -Math.log10(d.padj)),
+                    mode: 'markers',
+                    type: 'scattergl',
+                    name: `Up-regulated (${upRegulated.length})`,
+                    marker: { color: '#ef4444', size: 6 },
+                    text: upRegulated.map(d => `${d.gene}<br>Log2(FC): ${d.logFC}<br>p-value: ${d.padj}`),
+                    hovertemplate: '%{text}<extra></extra>'
+                },
+                {
+                    x: downRegulated.map(d => d.logFC),
+                    y: downRegulated.map(d => -Math.log10(d.padj)),
+                    mode: 'markers',
+                    type: 'scattergl',
+                    name: `Down-regulated (${downRegulated.length})`,
+                    marker: { color: '#3b82f6', size: 6 },
+                    text: downRegulated.map(d => `${d.gene}<br>Log2(FC): ${d.logFC}<br>p-value: ${d.padj}`),
+                    hovertemplate: '%{text}<extra></extra>'
+                },
+                {
+                    x: nonSignificant.map(d => d.logFC),
+                    y: nonSignificant.map(d => -Math.log10(d.padj)),
+                    mode: 'markers',
+                    type: 'scattergl',
+                    name: `Non-significant (${nonSignificant.length})`,
+                    marker: { color: '#6b7280', size: 4, opacity: 0.6 },
+                    text: nonSignificant.map(d => `${d.gene}<br>Log2(FC): ${d.logFC}<br>p-value: ${d.padj}`),
+                    hovertemplate: '%{text}<extra></extra>'
+                }
+            ];
+
+            const layout = {
+                title: `LOD Volcano Plot - ${data.filtered_rows.toLocaleString()} points (${zoomLevel.toFixed(1)}x zoom, ${loadTime.toFixed(0)}ms)`,
+                xaxis: { title: 'Log2(Fold Change)' },
+                yaxis: { title: '-log10(p-value)' },
+                hovermode: 'closest',
+                showlegend: true,
+                shapes: [
+                    // Significance thresholds
+                    { type: 'line', x0: -0.5, x1: -0.5, y0: 0, y1: 1, yref: 'paper', line: { color: '#ef4444', width: 2, dash: 'dash' } },
+                    { type: 'line', x0: 0.5, x1: 0.5, y0: 0, y1: 1, yref: 'paper', line: { color: '#ef4444', width: 2, dash: 'dash' } },
+                    { type: 'line', x0: 0, x1: 1, xref: 'paper', y0: -Math.log10(0.05), y1: -Math.log10(0.05), line: { color: '#6b7280', width: 2, dash: 'dash' } }
+                ]
+            };
+
+            Plotly.newPlot('volcano-plot', traces, layout, {
+                displayModeBar: true,
+                responsive: true
+            });
+
+            // Add zoom/pan event listeners
+            document.getElementById('volcano-plot').on('plotly_relayout', function(eventData) {
+                if (eventData['xaxis.range[0]'] !== undefined && eventData['yaxis.range[0]'] !== undefined) {
+                    const xRange = [eventData['xaxis.range[0]'], eventData['xaxis.range[1]']];
+                    const yRange = [eventData['yaxis.range[0]'], eventData['yaxis.range[1]']];
+                    
+                    // Calculate zoom level
+                    const initialXRange = 10;
+                    const initialYRange = 10;
+                    const xZoom = initialXRange / (xRange[1] - xRange[0]);
+                    const yZoom = initialYRange / (yRange[1] - yRange[0]);
+                    const newZoom = Math.max(xZoom, yZoom, 1);
+                    
+                    if (Math.abs(newZoom - currentZoom) > 0.3) {
+                        currentZoom = newZoom;
+                        document.getElementById('zoom-level').textContent = `Zoom: ${newZoom.toFixed(1)}x`;
+                        
+                        // Debounced reload
+                        clearTimeout(window.zoomTimeout);
+                        window.zoomTimeout = setTimeout(() => {
+                            if (lodEnabled) {
+                                loadVolcanoData(newZoom, { x: xRange, y: yRange });
+                            }
+                        }, 1000);
+                    }
+                }
+            });
+        }
+
+        function updateInfo(data, loadTime) {
+            document.getElementById('point-count').innerHTML = `
+                Points: ${data.filtered_rows.toLocaleString()}${data.is_downsampled ? ` (from ${data.points_before_sampling.toLocaleString()})` : ''}<br>
+                Dataset: ${data.total_rows.toLocaleString()} total
+            `;
+            
+            const avgLoadTime = loadTimes.slice(-5).reduce((a, b) => a + b, 0) / Math.min(loadTimes.length, 5);
+            document.getElementById('performance-info').innerHTML = `
+                Load time: ${loadTime.toFixed(0)}ms<br>
+                Avg (last 5): ${avgLoadTime.toFixed(0)}ms<br>
+                ${data.is_downsampled ? 'Intelligently sampled' : 'All points shown'}
+            `;
+        }
+
+        function setDatasetSize(size) {
+            currentDatasetSize = size;
+            
+            // Update button states
+            document.querySelectorAll('[id^="btn-"]').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`btn-${size >= 1000000 ? size/1000000 + 'm' : size/1000 + 'k'}`).classList.add('active');
+            
+            loadVolcanoData(currentZoom);
+        }
+
+        function toggleLOD() {
+            lodEnabled = !lodEnabled;
+            const btn = document.getElementById('btn-lod');
+            btn.textContent = lodEnabled ? 'LOD Enabled' : 'LOD Disabled';
+            btn.classList.toggle('active', lodEnabled);
+            
+            loadVolcanoData(currentZoom);
+        }
+
+        // Initial load
+        loadVolcanoData();
+    </script>
+</body>
+</html>
