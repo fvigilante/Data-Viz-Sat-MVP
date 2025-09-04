@@ -8,6 +8,9 @@ import os
 import numpy as np
 from pathlib import Path
 from functools import lru_cache
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
+from sklearn.datasets import make_blobs
 
 app = FastAPI(title="Data Viz Satellite API", version="1.0.0")
 
@@ -52,8 +55,25 @@ class VolcanoResponse(BaseModel):
     points_before_sampling: int
     is_downsampled: bool
 
+# PCA Models
+class PCADataPoint(BaseModel):
+    sample_id: str
+    pc1: float
+    pc2: float
+    pc3: float
+    group: str
+    batch: Optional[str] = None
+
+class PCAResponse(BaseModel):
+    data: List[PCADataPoint]
+    explained_variance: dict  # pc1, pc2, pc3 percentages
+    stats: dict
+    is_downsampled: bool
+    points_before_sampling: int
+
 # Global cache for generated datasets
 _data_cache = {}
+_pca_cache = {}
 
 @lru_cache(maxsize=10)
 def get_cached_dataset(size: int) -> pl.DataFrame:
@@ -376,6 +396,173 @@ async def get_volcano_data_get(
     )
     
     return await get_volcano_data(filters)
+
+# PCA Functions
+@lru_cache(maxsize=20)
+def generate_pca_dataset(
+    n_samples: int, 
+    n_features: int, 
+    n_groups: int, 
+    add_batch_effect: bool = False, 
+    noise_level: float = 0.1
+) -> tuple:
+    """Generate synthetic multi-omics data and compute PCA"""
+    
+    cache_key = f"{n_samples}_{n_features}_{n_groups}_{add_batch_effect}_{noise_level}"
+    
+    if cache_key in _pca_cache:
+        return _pca_cache[cache_key]
+    
+    print(f"Generating PCA dataset: {n_samples} samples, {n_features} features, {n_groups} groups")
+    
+    # Generate synthetic multi-omics data with realistic group separation
+    np.random.seed(42)
+    
+    # Create well-separated clusters for groups
+    centers = np.random.randn(n_groups, n_features) * 3
+    X, y = make_blobs(
+        n_samples=n_samples,
+        centers=centers,
+        n_features=n_features,
+        cluster_std=1.0 + noise_level,
+        random_state=42
+    )
+    
+    # Add batch effect if requested
+    if add_batch_effect:
+        n_batches = min(4, n_groups)  # Max 4 batches
+        batch_labels = np.random.choice(n_batches, n_samples)
+        
+        # Add systematic batch effects
+        for batch in range(n_batches):
+            batch_mask = batch_labels == batch
+            batch_effect = np.random.randn(n_features) * 0.5
+            X[batch_mask] += batch_effect
+    else:
+        batch_labels = np.zeros(n_samples, dtype=int)
+    
+    # Standardize features
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+    
+    # Compute PCA
+    pca = PCA(n_components=3)
+    X_pca = pca.fit_transform(X_scaled)
+    
+    # Create sample IDs
+    sample_ids = [f"Sample_{i+1:04d}" for i in range(n_samples)]
+    group_labels = [f"Group_{group+1}" for group in y]
+    batch_labels_str = [f"Batch_{batch+1}" if add_batch_effect else None for batch in batch_labels]
+    
+    # Prepare data
+    pca_data = []
+    for i in range(n_samples):
+        pca_data.append({
+            'sample_id': sample_ids[i],
+            'pc1': float(X_pca[i, 0]),
+            'pc2': float(X_pca[i, 1]),
+            'pc3': float(X_pca[i, 2]),
+            'group': group_labels[i],
+            'batch': batch_labels_str[i]
+        })
+    
+    explained_variance = {
+        'pc1': float(pca.explained_variance_ratio_[0]),
+        'pc2': float(pca.explained_variance_ratio_[1]),
+        'pc3': float(pca.explained_variance_ratio_[2])
+    }
+    
+    stats = {
+        'total_samples': n_samples,
+        'total_features': n_features,
+        'groups': list(set(group_labels))
+    }
+    
+    result = (pca_data, explained_variance, stats)
+    _pca_cache[cache_key] = result
+    
+    print(f"PCA dataset generated and cached. Explained variance: PC1={explained_variance['pc1']:.3f}, PC2={explained_variance['pc2']:.3f}, PC3={explained_variance['pc3']:.3f}")
+    
+    return result
+
+def intelligent_pca_sampling(data: List[dict], max_points: int) -> List[dict]:
+    """Intelligent sampling for PCA data that preserves group distribution"""
+    if len(data) <= max_points:
+        return data
+    
+    # Group by group label
+    groups = {}
+    for point in data:
+        group = point['group']
+        if group not in groups:
+            groups[group] = []
+        groups[group].append(point)
+    
+    # Sample proportionally from each group
+    sampled_data = []
+    n_groups = len(groups)
+    points_per_group = max_points // n_groups
+    remaining_points = max_points % n_groups
+    
+    for i, (group, points) in enumerate(groups.items()):
+        # Give extra points to first few groups if there's a remainder
+        group_points = points_per_group + (1 if i < remaining_points else 0)
+        
+        if len(points) <= group_points:
+            sampled_data.extend(points)
+        else:
+            # Random sampling within group
+            indices = np.random.choice(len(points), group_points, replace=False)
+            sampled_data.extend([points[idx] for idx in indices])
+    
+    return sampled_data
+
+@app.get("/api/pca-cache-status")
+async def pca_cache_status():
+    """Get current PCA cache status"""
+    return {
+        "cached_datasets": list(_pca_cache.keys()),
+        "total_cached": len(_pca_cache)
+    }
+
+@app.get("/api/pca-data", response_model=PCAResponse)
+async def get_pca_data(
+    dataset_size: int = Query(1000, ge=100, le=100000),
+    n_features: int = Query(100, ge=10, le=10000),
+    n_groups: int = Query(3, ge=2, le=8),
+    max_points: int = Query(10000, ge=100, le=50000),
+    add_batch_effect: bool = Query(False),
+    noise_level: float = Query(0.1, ge=0.01, le=1.0)
+):
+    """
+    Generate and return PCA data with 3D coordinates
+    """
+    try:
+        # Generate PCA dataset
+        pca_data, explained_variance, stats = generate_pca_dataset(
+            dataset_size, n_features, n_groups, add_batch_effect, noise_level
+        )
+        
+        # Apply intelligent sampling if needed
+        points_before_sampling = len(pca_data)
+        is_downsampled = len(pca_data) > max_points
+        
+        if is_downsampled:
+            pca_data = intelligent_pca_sampling(pca_data, max_points)
+        
+        # Convert to Pydantic models
+        data_points = [PCADataPoint(**point) for point in pca_data]
+        
+        return PCAResponse(
+            data=data_points,
+            explained_variance=explained_variance,
+            stats=stats,
+            is_downsampled=is_downsampled,
+            points_before_sampling=points_before_sampling
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating PCA data: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

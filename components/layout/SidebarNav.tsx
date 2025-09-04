@@ -6,7 +6,16 @@ import { BarChart3, Info, ScanText as Scatter, TrendingUp, Server, Zap } from "l
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
-const navItems = [
+interface NavItem {
+  title: string
+  href: string
+  icon: any
+  disabled: boolean
+  badge?: string
+  tooltip?: string
+}
+
+const navItems: NavItem[] = [
   {
     title: "Volcano (Client)",
     href: "/plots/volcano",
@@ -24,14 +33,13 @@ const navItems = [
     href: "/plots/volcano-fastapi",
     icon: Zap,
     disabled: false,
-    // badge: "NEW",
   },
   {
-    title: "PCA",
+    title: "PCA (FastAPI)",
     href: "/plots/pca",
     icon: TrendingUp,
-    disabled: true,
-    tooltip: "Coming soon",
+    disabled: false,
+    badge: "NEW",
   },
   {
     title: "Heatmap",
