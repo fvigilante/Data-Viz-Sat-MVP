@@ -1,0 +1,59 @@
+﻿apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  annotations:
+    run.googleapis.com/ingress: all
+    run.googleapis.com/ingress-status: all
+    run.googleapis.com/invoker-iam-disabled: 'true'
+    run.googleapis.com/launch-stage: BETA
+    run.googleapis.com/manualInstanceCount: '1'
+    run.googleapis.com/scalingMode: manual
+    run.googleapis.com/urls: '["https://data-viz-sat-mvp-18592493990.europe-west1.run.app","https://data-viz-sat-mvp-dtnjnxibva-ew.a.run.app"]'
+  labels:
+    cloud.googleapis.com/location: europe-west1
+    commit-sha: 3e7981a787d67f62eaaaa75b9399d53bef17fffb
+    gcb-build-id: 26d60b35-855c-413a-8f18-15af04201112
+    gcb-trigger-id: 5b783187-828d-4d8c-b202-721611dd557c
+    gcb-trigger-region: global
+    managed-by: gcp-cloud-build-deploy-cloud-run
+  name: data-viz-sat-mvp
+  namespace: '18592493990'
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/maxScale: '100'
+        run.googleapis.com/client-name: gcloud
+        run.googleapis.com/client-version: 537.0.0
+        run.googleapis.com/startup-cpu-boost: 'true'
+      labels:
+        client.knative.dev/nonce: tsdtopijcb
+        commit-sha: 3e7981a787d67f62eaaaa75b9399d53bef17fffb
+        gcb-build-id: 26d60b35-855c-413a-8f18-15af04201112
+        gcb-trigger-id: 5b783187-828d-4d8c-b202-721611dd557c
+        gcb-trigger-region: global
+        managed-by: gcp-cloud-build-deploy-cloud-run
+        run.googleapis.com/startupProbeType: Default
+    spec:
+      containerConcurrency: 80
+      containers:
+      - image: europe-west1-docker.pkg.dev/data-viz-satellite-mvp/cloud-run-source-deploy/data-viz-sat-mvp/data-viz-sat-mvp:3e7981a787d67f62eaaaa75b9399d53bef17fffb
+        name: placeholder-1
+        ports:
+        - containerPort: 8080
+          name: http1
+        resources:
+          limits:
+            cpu: 4000m
+            memory: 16Gi
+        startupProbe:
+          failureThreshold: 1
+          periodSeconds: 240
+          tcpSocket:
+            port: 8080
+          timeoutSeconds: 240
+      serviceAccountName: 18592493990-compute@developer.gserviceaccount.com
+      timeoutSeconds: 300
+  traffic:
+  - latestRevision: true
+    percent: 100

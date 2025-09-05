@@ -46,4 +46,4 @@ Write-Host ""
 Write-Host "🔍 Frontend will call API at: http://127.0.0.1:9000" -ForegroundColor Yellow
 Write-Host "📊 Test your deployment at: $ServiceUrl" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "📋 Check logs in Cloud Console or use gcloud logging commands" -ForegroundColor Yellow
+Write-Host "Check logs in Cloud Console or use gcloud logging commands" -ForegroundColor Yellow

@@ -54,7 +54,6 @@ spec:
           httpGet:
             path: /api/ready
             port: 8080
-          initialDelaySeconds: 5
           periodSeconds: 5
           timeoutSeconds: 3
           failureThreshold: 3
@@ -97,7 +96,6 @@ spec:
           httpGet:
             path: /ready
             port: 9000
-          initialDelaySeconds: 5
           periodSeconds: 5
           timeoutSeconds: 3
           failureThreshold: 3
