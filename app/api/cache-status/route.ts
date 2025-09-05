@@ -4,20 +4,14 @@ const API_INTERNAL_URL = process.env.API_INTERNAL_URL || "http://127.0.0.1:9000"
 
 export async function GET(request: NextRequest) {
   try {
-    // Get query parameters from the request
-    const { searchParams } = new URL(request.url)
-    const queryString = searchParams.toString()
+    const apiUrl = `${API_INTERNAL_URL}/api/cache-status`
     
-    // Forward request to internal API
-    const apiUrl = `${API_INTERNAL_URL}/api/volcano-data${queryString ? `?${queryString}` : ''}`
-    
-    console.log(`[Proxy] Forwarding volcano-data request to: ${apiUrl}`)
+    console.log(`[Proxy] Forwarding cache-status request to: ${apiUrl}`)
     
     const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        // Forward essential headers
         'User-Agent': request.headers.get('user-agent') || 'Next.js-Proxy',
         'Accept': request.headers.get('accept') || 'application/json',
       },
@@ -32,13 +26,11 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await response.json()
-    console.log(`[Proxy] Successfully forwarded volcano-data request, received ${JSON.stringify(data).length} bytes`)
-    
     return NextResponse.json(data)
   } catch (error) {
-    console.error("[Proxy] Error forwarding volcano-data request:", error)
+    console.error("[Proxy] Error forwarding cache-status request:", error)
     return NextResponse.json(
-      { error: "Failed to fetch data from internal API" },
+      { error: "Failed to fetch cache status from internal API" },
       { status: 500 }
     )
   }

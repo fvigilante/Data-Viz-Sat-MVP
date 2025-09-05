@@ -53,7 +53,7 @@ interface PCAParams {
   noise_level: number
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+import { getApiUrl } from "@/lib/api-config"
 
 export default function FastAPIPCAPlot() {
   const [data, setData] = useState<PCADataPoint[]>([])
@@ -81,7 +81,7 @@ export default function FastAPIPCAPlot() {
   // Clear cache function
   const clearCache = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/clear-cache`, {
+      const response = await fetch(getApiUrl('clearCache'), {
         method: 'POST'
       })
       if (response.ok) {
@@ -100,7 +100,7 @@ export default function FastAPIPCAPlot() {
 
     try {
       // Check if dataset might need generation
-      const cacheStatusResponse = await fetch(`${API_BASE_URL}/api/pca-cache-status`)
+      const cacheStatusResponse = await fetch(getApiUrl('pcaCacheStatus'))
       if (cacheStatusResponse.ok) {
         const cacheStatus = await cacheStatusResponse.json()
         const cacheKey = `${params.dataset_size}_${params.n_features}_${params.n_groups}`
@@ -119,7 +119,7 @@ export default function FastAPIPCAPlot() {
 
       console.log('PCA API Request:', queryParams.toString())
 
-      const response = await fetch(`${API_BASE_URL}/api/pca-data?${queryParams}`)
+      const response = await fetch(`${getApiUrl('pcaData')}?${queryParams}`)
 
       if (!response.ok) {
         throw new Error(`API Error: ${response.status} ${response.statusText}`)
@@ -709,7 +709,7 @@ export default function FastAPIPCAPlot() {
                   <p className="font-medium mb-1">API Connection Error</p>
                   <p className="text-sm">{error}</p>
                   <p className="text-xs mt-2 text-muted-foreground">
-                    Make sure FastAPI server is running on {API_BASE_URL}
+                    Make sure the API server is running and accessible
                   </p>
                 </AlertDescription>
               </Alert>

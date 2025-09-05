@@ -44,7 +44,7 @@ interface FilterParams {
   max_points?: number
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+import { getApiUrl } from "@/lib/api-config"
 
 export default function FastAPIVolcanoPlot() {
   const [data, setData] = useState<VolcanoDataPoint[]>([])
@@ -76,7 +76,7 @@ export default function FastAPIVolcanoPlot() {
 
     try {
       // Check if dataset might need generation
-      const cacheStatusResponse = await fetch(`${API_BASE_URL}/api/cache-status`)
+      const cacheStatusResponse = await fetch(getApiUrl('cacheStatus'))
       if (cacheStatusResponse.ok) {
         const cacheStatus = await cacheStatusResponse.json()
         const isDatasetCached = cacheStatus.cached_datasets.includes(params.dataset_size)
@@ -96,7 +96,7 @@ export default function FastAPIVolcanoPlot() {
       console.log('API Request - finalMaxPoints:', finalMaxPoints, 'params.max_points:', params.max_points, 'maxPoints state:', maxPoints, 'datasetSize:', params.dataset_size)
       console.log('Full query params:', queryParams.toString())
 
-      const response = await fetch(`${API_BASE_URL}/api/volcano-data?${queryParams}`)
+      const response = await fetch(`${getApiUrl('volcanoData')}?${queryParams}`)
 
       if (!response.ok) {
         throw new Error(`API Error: ${response.status} ${response.statusText}`)
@@ -362,7 +362,7 @@ export default function FastAPIVolcanoPlot() {
     setError(null)
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/warm-cache`, {
+      const response = await fetch(getApiUrl('warmCache'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -726,7 +726,7 @@ export default function FastAPIVolcanoPlot() {
                   <p className="font-medium mb-1">API Connection Error</p>
                   <p className="text-sm">{error}</p>
                   <p className="text-xs mt-2 text-muted-foreground">
-                    Make sure FastAPI server is running on {API_BASE_URL}
+                    Make sure the API server is running and accessible
                   </p>
                 </AlertDescription>
               </Alert>

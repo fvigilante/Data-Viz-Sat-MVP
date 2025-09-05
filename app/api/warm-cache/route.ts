@@ -2,25 +2,21 @@ import { NextRequest, NextResponse } from "next/server"
 
 const API_INTERNAL_URL = process.env.API_INTERNAL_URL || "http://127.0.0.1:9000"
 
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    // Get query parameters from the request
-    const { searchParams } = new URL(request.url)
-    const queryString = searchParams.toString()
+    const body = await request.json()
+    const apiUrl = `${API_INTERNAL_URL}/api/warm-cache`
     
-    // Forward request to internal API
-    const apiUrl = `${API_INTERNAL_URL}/api/volcano-data${queryString ? `?${queryString}` : ''}`
-    
-    console.log(`[Proxy] Forwarding volcano-data request to: ${apiUrl}`)
+    console.log(`[Proxy] Forwarding warm-cache request to: ${apiUrl}`)
     
     const response = await fetch(apiUrl, {
-      method: 'GET',
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        // Forward essential headers
         'User-Agent': request.headers.get('user-agent') || 'Next.js-Proxy',
         'Accept': request.headers.get('accept') || 'application/json',
       },
+      body: JSON.stringify(body),
     })
 
     if (!response.ok) {
@@ -32,13 +28,11 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await response.json()
-    console.log(`[Proxy] Successfully forwarded volcano-data request, received ${JSON.stringify(data).length} bytes`)
-    
     return NextResponse.json(data)
   } catch (error) {
-    console.error("[Proxy] Error forwarding volcano-data request:", error)
+    console.error("[Proxy] Error forwarding warm-cache request:", error)
     return NextResponse.json(
-      { error: "Failed to fetch data from internal API" },
+      { error: "Failed to warm cache on internal API" },
       { status: 500 }
     )
   }

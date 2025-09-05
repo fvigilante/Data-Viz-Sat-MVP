@@ -9,9 +9,9 @@ export async function GET(request: NextRequest) {
     const queryString = searchParams.toString()
     
     // Forward request to internal API
-    const apiUrl = `${API_INTERNAL_URL}/api/volcano-data${queryString ? `?${queryString}` : ''}`
+    const apiUrl = `${API_INTERNAL_URL}/api/pca-data${queryString ? `?${queryString}` : ''}`
     
-    console.log(`[Proxy] Forwarding volcano-data request to: ${apiUrl}`)
+    console.log(`[Proxy] Forwarding pca-data request to: ${apiUrl}`)
     
     const response = await fetch(apiUrl, {
       method: 'GET',
@@ -32,11 +32,11 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await response.json()
-    console.log(`[Proxy] Successfully forwarded volcano-data request, received ${JSON.stringify(data).length} bytes`)
+    console.log(`[Proxy] Successfully forwarded pca-data request, received ${JSON.stringify(data).length} bytes`)
     
     return NextResponse.json(data)
   } catch (error) {
-    console.error("[Proxy] Error forwarding volcano-data request:", error)
+    console.error("[Proxy] Error forwarding pca-data request:", error)
     return NextResponse.json(
       { error: "Failed to fetch data from internal API" },
       { status: 500 }
