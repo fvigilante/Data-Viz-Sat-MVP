@@ -517,132 +517,271 @@ npm run start
 
 ## 🚀 Deployment & Production
 
-### Google Cloud Run Multi-Container Deployment (Recommended)
+This project supports three deployment methods: local Docker development, manual Google Cloud deployment, and automated CI/CD deployment. Choose the method that best fits your development workflow.
 
-This project is configured for Google Cloud Run multi-container deployment with separate containers for the Next.js frontend and FastAPI backend.
+### 🐳 Local Docker Development
 
-#### Prerequisites
-- Google Cloud SDK installed and configured
-- Docker installed
-- Google Cloud project with Artifact Registry enabled
-- Billing enabled on your Google Cloud project
+Perfect for development and testing the full multi-container setup locally.
 
-#### Build and Push Images to Artifact Registry
-
-1. **Set up environment variables**
-   \`\`\`bash
-   export PROJECT_ID=your-google-cloud-project-id
-   export REGION=europe-west1
-   export REPOSITORY=data-viz-satellite
-   \`\`\`
-
-2. **Create Artifact Registry repository (one-time setup)**
-   \`\`\`bash
-   gcloud artifacts repositories create $REPOSITORY \
-     --repository-format=docker \
-     --location=$REGION \
-     --description="Data Viz Satellite container images"
-   \`\`\`
-
-3. **Configure Docker authentication**
-   \`\`\`bash
-   gcloud auth configure-docker $REGION-docker.pkg.dev
-   \`\`\`
-
-4. **Build and push the frontend image**
-   \`\`\`bash
-   # Build the Next.js frontend image
-   docker build -f Dockerfile.production -t $REGION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/frontend:latest .
-   
-   # Push to Artifact Registry
-   docker push $REGION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/frontend:latest
-   \`\`\`
-
-5. **Build and push the API image**
-   \`\`\`bash
-   # Build the FastAPI backend image
-   docker build -f api/Dockerfile -t $REGION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/api:latest ./api
-   
-   # Push to Artifact Registry
-   docker push $REGION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/api:latest
-   \`\`\`
-
-#### Deploy to Cloud Run
-
-**Option 1: Automated Build and Deploy (Recommended)**
-
-Use the provided build script for a one-command deployment:
-
+#### Quick Start
 \`\`\`bash
-# Linux/Mac
-./scripts/build-and-deploy.sh your-project-id europe-west1
+# Build and start both containers
+docker-compose build
+docker-compose up -d
 
-# Windows PowerShell
-.\scripts\build-and-deploy.ps1 your-project-id europe-west1
+# Run comprehensive tests
+./test-local-docker.ps1
+
+# Access the application
+# Frontend: http://localhost:3000
+# API: http://localhost:8000
 \`\`\`
 
-**Option 2: Manual Deployment**
+#### Architecture
+- **Frontend Container**: Next.js app on port 3000 (mapped from internal 8080)
+- **Backend Container**: FastAPI on port 8000 (mapped from internal 9000)
+- **Internal Communication**: `API_INTERNAL_URL=http://api:9000`
+- **Health Checks**: Automatic container health monitoring
+- **Hot Reload**: Code changes reflected immediately
 
-1. **Update service.yaml with your project details**
-   Replace `PROJECT_ID` in `service.yaml` with your actual Google Cloud project ID:
+#### Useful Commands
+\`\`\`bash
+# View logs
+docker-compose logs web    # Frontend logs
+docker-compose logs api    # Backend logs
+docker-compose logs -f     # Follow all logs
+
+# Restart services
+docker-compose restart web
+docker-compose restart api
+
+# Clean rebuild
+docker-compose down -v
+docker-compose up -d --build
+
+# Container shell access
+docker-compose exec web sh
+docker-compose exec api bash
+\`\`\`
+
+See [README-Docker-Local.md](README-Docker-Local.md) for detailed local development guide.
+
+### ☁️ Google Cloud Run Multi-Container Deployment
+
+#### Method 1: Automated CI/CD Deployment (Recommended)
+
+The repository includes an automated GitHub trigger that builds and deploys on every push to `main`.
+
+**Setup (One-time)**
+1. **Fork/Clone the repository** to your GitHub account
+2. **Connect to Google Cloud Build**:
+   - Go to [Google Cloud Build Triggers](https://console.cloud.google.com/cloud-build/triggers)
+   - Click "Connect Repository" and select your GitHub repo
+   - Create trigger with these settings:
+     - **Name**: `data-viz-satellite-multi-container`
+     - **Event**: Push to branch `^main$`
+     - **Configuration**: Autodetected (uses `cloudbuild.yaml`)
+     - **Region**: `europe-west1`
+
+3. **Configure project settings** in `cloudbuild.yaml` and `service.yaml`:
    \`\`\`bash
-   sed -i "s/PROJECT_ID/$PROJECT_ID/g" service.yaml
-   sed -i "s/gcr.io/$REGION-docker.pkg.dev/g" service.yaml
+   # Update project ID in service.yaml
+   sed -i 's/data-viz-satellite-mvp/YOUR-PROJECT-ID/g' service.yaml
+   sed -i 's/data-viz-satellite-mvp/YOUR-PROJECT-ID/g' cloudbuild.yaml
    \`\`\`
 
-2. **Deploy the multi-container service**
-   \`\`\`bash
-   gcloud run services replace service.yaml \
-     --region=$REGION \
-     --allow-unauthenticated
-   \`\`\`
+**Deployment Process**
+\`\`\`bash
+# Simply push to main branch
+git add .
+git commit -m "Deploy to production"
+git push origin main
 
-3. **Get the service URL**
-   \`\`\`bash
-   gcloud run services describe data-viz-satellite \
-     --region=$REGION \
-     --format="value(status.url)"
-   \`\`\`
+# Monitor build progress
+gcloud builds list --limit=5
+gcloud builds log BUILD_ID --follow
+\`\`\`
 
-#### Architecture Overview
+**Build Pipeline**
+1. **Build API Image**: FastAPI container with Polars optimization
+2. **Build Frontend Image**: Next.js production build with multi-stage Docker
+3. **Push to Container Registry**: Images stored in Google Container Registry
+4. **Deploy Multi-Container Service**: Atomic deployment with zero downtime
+5. **Health Checks**: Automatic verification of service health
 
-The multi-container deployment includes:
+#### Method 2: Manual Deployment
 
-- **Frontend Container (web)**: Next.js app running on port 8080
-  - Handles user interface and client-side interactions
-  - Communicates with API container via internal networking
-  - Environment: `NEXT_PUBLIC_API_URL=http://127.0.0.1:9000`
-  - Resources: 1-2 CPU, 1-2GB RAM
+For direct control over the deployment process.
 
-- **API Container (api)**: FastAPI backend running on port 9000
-  - Processes data with Polars for high performance
-  - Handles large dataset operations (100K+ rows)
-  - Environment: `FRONTEND_URL=http://127.0.0.1:8080`
-  - Resources: 1-2 CPU, 2-4GB RAM (optimized for data processing)
+**Prerequisites**
+\`\`\`bash
+# Install Google Cloud SDK
+# https://cloud.google.com/sdk/docs/install
 
-- **Internal Communication**: Containers communicate via localhost (127.0.0.1)
-- **External Access**: Only the frontend container (port 8080) receives external traffic
-- **Health Checks**: Both containers have startup, liveness, and readiness probes
-- **Auto-scaling**: Configured for up to 10 instances with 80 concurrent requests per instance
+# Authenticate and set project
+gcloud auth login
+gcloud config set project YOUR-PROJECT-ID
+gcloud config set run/region europe-west1
+\`\`\`
 
-#### Benefits of Multi-Container Architecture
+**One-Command Deployment**
+\`\`\`bash
+# Use the automated deployment script
+./deploy-and-test.ps1
 
-✅ **Separation of Concerns**: Frontend and backend can be developed, deployed, and scaled independently  
-✅ **Resource Optimization**: Each container gets resources tailored to its workload  
-✅ **Technology Flexibility**: Use the best technology for each component (Next.js + FastAPI)  
+# Or run individual steps:
+gcloud builds submit --config cloudbuild.yaml
+gcloud run services replace service.yaml --region=europe-west1
+\`\`\`
+
+**Manual Step-by-Step**
+\`\`\`bash
+# 1. Build and push images
+gcloud builds submit --config cloudbuild.yaml
+
+# 2. Deploy the multi-container service
+gcloud run services replace service.yaml \
+  --region=europe-west1 \
+  --platform=managed
+
+# 3. Get service URL
+gcloud run services describe data-viz-satellite \
+  --region=europe-west1 \
+  --format="value(status.url)"
+\`\`\`
+
+### 🏗️ Multi-Container Architecture
+
+#### Container Configuration
+
+**Frontend Container (web)**
+- **Image**: Next.js 15 production build
+- **Port**: 8080 (internal), exposed externally
+- **Resources**: 1-2 CPU, 1-2GB RAM
+- **Environment**:
+  - `API_INTERNAL_URL=http://127.0.0.1:9000`
+  - `NODE_ENV=production`
+  - `PORT=8080`
+
+**Backend Container (api)**
+- **Image**: FastAPI with Polars and scientific libraries
+- **Port**: 9000 (internal only)
+- **Resources**: 1-2 CPU, 2-4GB RAM (optimized for data processing)
+- **Environment**:
+  - `FRONTEND_URL=http://127.0.0.1:8080`
+  - `PORT=9000`
+- **Health Checks**: `/health` endpoint with startup/liveness probes
+
+#### Service Configuration
+\`\`\`yaml
+# Key service.yaml settings
+spec:
+  template:
+    metadata:
+      annotations:
+        run.googleapis.com/execution-environment: gen2
+        autoscaling.knative.dev/maxScale: "10"
+    spec:
+      containerConcurrency: 80
+      timeoutSeconds: 300
+\`\`\`
+
+#### Benefits of This Architecture
+
+✅ **Technology Optimization**: Next.js for UI, FastAPI+Polars for data processing  
+✅ **Independent Scaling**: Scale frontend and backend based on different load patterns  
+✅ **Resource Efficiency**: Each container gets resources tailored to its workload  
 ✅ **Fault Isolation**: Issues in one container don't affect the other  
-✅ **Independent Scaling**: Scale data processing separately from UI serving  
-✅ **Cost Efficiency**: Pay only for the resources each component actually needs
+✅ **Development Flexibility**: Teams can work on frontend and backend independently  
+✅ **Cost Optimization**: Pay only for resources each component needs  
+✅ **Zero Downtime Deployments**: Atomic deployments with automatic rollback  
 
-#### Monitoring and Logs
+### 🔍 Monitoring & Troubleshooting
 
+#### Service Health Checks
 \`\`\`bash
-# View service logs
-gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=data-viz-satellite" --limit=50
+# Check service status
+gcloud run services describe data-viz-satellite --region=europe-west1
 
-# Monitor service metrics
-gcloud run services describe data-viz-satellite --region=$REGION
+# View recent logs
+gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=data-viz-satellite" --limit=20
+
+# Monitor specific container
+gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=data-viz-satellite AND labels.container_name=api" --limit=10
 \`\`\`
+
+#### Performance Monitoring
+- **Cloud Run Metrics**: CPU, memory, request latency in Google Cloud Console
+- **Application Logs**: Structured logging for both containers
+- **Health Endpoints**: 
+  - Frontend: `https://your-service-url/`
+  - Backend: `https://your-service-url/api/health` (proxied through frontend)
+
+#### Common Issues & Solutions
+
+**Build Failures**
+\`\`\`bash
+# Check build logs
+gcloud builds list --limit=5
+gcloud builds log BUILD_ID
+
+# Common fixes:
+# - Verify Dockerfile paths in cloudbuild.yaml
+# - Check for syntax errors in service.yaml
+# - Ensure all required files are committed to git
+\`\`\`
+
+**Deployment Issues**
+\`\`\`bash
+# Check service deployment status
+gcloud run services describe data-viz-satellite --region=europe-west1
+
+# Common fixes:
+# - Verify container images exist in registry
+# - Check environment variables in service.yaml
+# - Ensure proper IAM permissions for Cloud Run
+\`\`\`
+
+**Runtime Errors**
+\`\`\`bash
+# Check container logs
+gcloud logging read "resource.type=cloud_run_revision" --limit=50
+
+# Common fixes:
+# - Verify API_INTERNAL_URL points to correct internal port
+# - Check that both containers are healthy
+# - Ensure proper resource limits (memory for data processing)
+\`\`\`
+
+### 🚀 Production Optimization
+
+#### Performance Tuning
+- **Container Resources**: Adjust CPU/memory based on usage patterns
+- **Concurrency**: Tune `containerConcurrency` for optimal throughput
+- **Caching**: Enable Cloud CDN for static assets
+- **Database**: Consider Cloud SQL or Firestore for persistent data
+
+#### Security Best Practices
+- **IAM**: Use least-privilege service accounts
+- **VPC**: Deploy in private VPC for sensitive data
+- **Secrets**: Use Secret Manager for API keys and credentials
+- **HTTPS**: Automatic SSL/TLS termination with Cloud Run
+
+#### Cost Optimization
+- **Auto-scaling**: Configure min/max instances based on traffic
+- **Resource Limits**: Right-size CPU and memory allocations
+- **Regional Deployment**: Choose regions close to your users
+- **Request Timeout**: Optimize timeout settings to prevent resource waste
+
+### 📋 Deployment Summary
+
+| Method | Use Case | Setup Time | Automation | Best For |
+|--------|----------|------------|------------|----------|
+| **🐳 Local Docker** | Development & Testing | 5 minutes | Manual | Local development, debugging |
+| **🤖 Automated CI/CD** | Production | 10 minutes setup | Full automation | Production deployments, team collaboration |
+| **⚡ Manual Cloud** | Quick deployment | 2 minutes | Semi-automated | Hotfixes, one-off deployments |
+
+**Live Application**: https://data-viz-satellite-18592493990.europe-west1.run.app
 
 ### Alternative Deployment Options
 
