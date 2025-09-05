@@ -18,7 +18,7 @@ spec:
       containers:
       # Frontend container (Next.js)
       - name: web
-        image: gcr.io/PROJECT_ID/data-viz-satellite-frontend:latest
+        image: gcr.io/data-viz-satellite-mvp/data-viz-satellite-frontend:latest
         ports:
         - name: http1
           containerPort: 8080
@@ -61,7 +61,7 @@ spec:
       
       # API container (FastAPI)
       - name: api
-        image: gcr.io/PROJECT_ID/data-viz-satellite-api:latest
+        image: gcr.io/data-viz-satellite-mvp/data-viz-satellite-api:latest
         ports:
         - name: http2
           containerPort: 9000
