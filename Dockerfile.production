@@ -16,6 +16,10 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# Set build-time environment variables for Cloud Run multi-container
+ENV NEXT_PUBLIC_API_URL=http://127.0.0.1:9000
+ENV NODE_ENV=production
+
 # Build the application
 RUN npm run build
 

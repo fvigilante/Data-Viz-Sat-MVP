@@ -1,0 +1,64 @@
+steps:
+  # Build the FastAPI backend image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/data-viz-satellite-api:latest'
+      - '-f'
+      - 'api/Dockerfile'
+      - './api'
+    id: 'build-api'
+
+  # Build the Next.js frontend image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/data-viz-satellite-frontend:latest'
+      - '-f'
+      - 'Dockerfile.production'
+      - '.'
+    id: 'build-frontend'
+
+  # Push the API image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/data-viz-satellite-api:latest'
+    id: 'push-api'
+    waitFor: ['build-api']
+
+  # Push the frontend image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/data-viz-satellite-frontend:latest'
+    id: 'push-frontend'
+    waitFor: ['build-frontend']
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        # Replace PROJECT_ID placeholder in service.yaml
+        sed 's/PROJECT_ID/$PROJECT_ID/g' service.yaml > service-deploy.yaml
+        
+        # Deploy the service
+        gcloud run services replace service-deploy.yaml --region=$_DEPLOY_REGION --platform=managed
+    id: 'deploy-service'
+    waitFor: ['push-api', 'push-frontend']
+
+# Substitution variables
+substitutions:
+  _DEPLOY_REGION: 'europe-west1'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: 'E2_HIGHCPU_8'
+
+images:
+  - 'gcr.io/$PROJECT_ID/data-viz-satellite-api:latest'
+  - 'gcr.io/$PROJECT_ID/data-viz-satellite-frontend:latest'
