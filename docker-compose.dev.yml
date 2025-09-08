@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # FastAPI Backend - Development with hot reload
+  api:
+    build: 
+      context: ./api
+      dockerfile: Dockerfile
+    ports:
+      - "8000:9000"
+    environment:
+      - PYTHONPATH=/app
+      - PORT=9000
+      - FRONTEND_URL=http://localhost:3000
+      - RELOAD=true  # Enable uvicorn auto-reload
+    volumes:
+      - ./api:/app  # Mount source code for hot reload
+    command: uvicorn main:app --host 0.0.0.0 --port 9000 --reload
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  # Next.js Frontend - Development with hot reload
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.development
+    ports:
+      - "3000:3000"  # Use standard Next.js port for dev
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000  # Point to API on host
+      - API_INTERNAL_URL=http://api:9000  # Internal Docker network communication
+      - NODE_ENV=development
+    volumes:
+      - .:/app  # Mount source code for hot reload
+      - node_modules:/app/node_modules  # Use named volume for node_modules
+      - /app/.next  # Exclude .next build folder
+    command: npm run dev
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  node_modules:
+
+networks:
+  default:
+    driver: bridge

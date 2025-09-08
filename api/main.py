@@ -10,18 +10,14 @@ from pathlib import Path
 from functools import lru_cache
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
-from sklearn.datasets import make_blobs
 
 app = FastAPI(title="Data Viz Satellite API", version="1.0.0")
 
-# CORS middleware - read allowed origins from environment variable
-frontend_url = os.getenv("FRONTEND_URL", "*")
-allowed_origins = [frontend_url] if frontend_url != "*" else ["*"]
-
+# CORS middleware - allow all origins for development
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_credentials=True,
+    allow_origins=["*"],  # Allow all origins for development
+    allow_credentials=False,  # Set to False when using allow_origins=["*"]
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -55,7 +51,6 @@ class VolcanoResponse(BaseModel):
     points_before_sampling: int
     is_downsampled: bool
 
-# PCA Models
 class PCADataPoint(BaseModel):
     sample_id: str
     pc1: float
@@ -63,13 +58,22 @@ class PCADataPoint(BaseModel):
     pc3: float
     group: str
     batch: Optional[str] = None
+    metadata: Optional[dict] = None
 
 class PCAResponse(BaseModel):
     data: List[PCADataPoint]
-    explained_variance: dict  # pc1, pc2, pc3 percentages
+    explained_variance: dict
     stats: dict
     is_downsampled: bool
     points_before_sampling: int
+
+class PCAParams(BaseModel):
+    dataset_size: int = 1000
+    n_features: int = 100
+    n_groups: int = 3
+    max_points: int = 10000
+    add_batch_effect: bool = False
+    noise_level: float = 0.1
 
 # Global cache for generated datasets
 _data_cache = {}
@@ -108,20 +112,65 @@ def get_cached_dataset(size: int) -> pl.DataFrame:
     # Use numpy for vectorized operations - much faster than Python loops
     np.random.seed(42)  # For reproducible results
     
-    # Generate log fold changes using normal distribution
-    log_fc = np.random.normal(0, 1.5, size).round(4)
+    # Create realistic volcano plot distribution
+    # Most metabolites should be non-significant (centered around 0, high p-values)
+    # Some should be significantly up/down-regulated
     
-    # Generate p-values based on fold change (more realistic distribution)
+    # Define proportions for realistic volcano plot
+    non_sig_proportion = 0.85  # 85% non-significant
+    up_reg_proportion = 0.075  # 7.5% up-regulated
+    down_reg_proportion = 0.075  # 7.5% down-regulated
+    
+    n_non_sig = int(size * non_sig_proportion)
+    n_up_reg = int(size * up_reg_proportion)
+    n_down_reg = size - n_non_sig - n_up_reg  # Remaining
+    
+    # Generate log fold changes for each category
+    # Non-significant: centered around 0, small fold changes (più compatti)
+    log_fc_non_sig = np.random.normal(0, 0.6, n_non_sig)
+    
+    # Up-regulated: positive fold changes, più concentrati ma significativi
+    log_fc_up = np.random.normal(1.5, 0.8, n_up_reg)  # Normale centrata su 1.5
+    
+    # Down-regulated: negative fold changes, più concentrati ma significativi
+    log_fc_down = np.random.normal(-1.5, 0.8, n_down_reg)  # Normale centrata su -1.5
+    
+    # Combine all fold changes
+    log_fc = np.concatenate([log_fc_non_sig, log_fc_up, log_fc_down])
+    
+    # Generate realistic p-values based on fold change magnitude
+    # Higher fold change = lower p-value (more significant)
     abs_log_fc = np.abs(log_fc)
-    p_values = np.where(
-        abs_log_fc > 1.5,
-        np.random.uniform(0, 0.1, size),
-        np.where(
-            abs_log_fc > 0.8,
-            np.random.uniform(0, 0.3, size),
-            np.random.uniform(0.2, 1.0, size)
-        )
-    ).round(6)
+    
+    # Create p-values with realistic volcano shape
+    p_values = np.zeros(size)
+    
+    # Non-significant points: high p-values (0.1 to 1.0) - più concentrati in alto
+    p_values[:n_non_sig] = np.random.uniform(0.1, 1.0, n_non_sig)
+    
+    # Significant points: p-values bassi correlati con fold change
+    # Up-regulated: p-values bassi
+    p_values[n_non_sig:n_non_sig + n_up_reg] = np.random.uniform(0.0001, 0.05, n_up_reg)
+    
+    # Down-regulated: p-values bassi
+    p_values[n_non_sig + n_up_reg:] = np.random.uniform(0.0001, 0.05, n_down_reg)
+    
+    # Add some noise to make it more realistic
+    noise_factor = 0.1
+    log_fc += np.random.normal(0, noise_factor, size)
+    
+    # Ensure p-values are within valid range
+    p_values = np.clip(p_values, 0.0001, 1.0)
+    
+    # Round for cleaner display
+    log_fc = np.round(log_fc, 4)
+    p_values = np.round(p_values, 6)
+    
+    # Shuffle to mix the categories
+    indices = np.arange(size)
+    np.random.shuffle(indices)
+    log_fc = log_fc[indices]
+    p_values = p_values[indices]
     
     # Generate gene names efficiently
     gene_names = [
@@ -148,6 +197,112 @@ def get_cached_dataset(size: int) -> pl.DataFrame:
     print(f"Dataset of size {size} generated and cached")
     
     return df
+
+@lru_cache(maxsize=20)
+def get_cached_pca_dataset(dataset_size: int, n_features: int, n_groups: int, add_batch_effect: bool, noise_level: float):
+    """Generate and cache synthetic PCA data"""
+    
+    cache_key = f"{dataset_size}_{n_features}_{n_groups}_{add_batch_effect}_{noise_level}"
+    
+    if cache_key in _pca_cache:
+        return _pca_cache[cache_key]
+    
+    print(f"Generating new PCA dataset: {dataset_size} samples, {n_features} features, {n_groups} groups...")
+    
+    np.random.seed(42)  # For reproducible results
+    
+    # Generate group labels
+    group_names = [f"Group_{i+1}" for i in range(n_groups)]
+    samples_per_group = dataset_size // n_groups
+    remainder = dataset_size % n_groups
+    
+    # Create sample IDs and group assignments
+    sample_ids = []
+    groups = []
+    
+    for i, group_name in enumerate(group_names):
+        n_samples = samples_per_group + (1 if i < remainder else 0)
+        sample_ids.extend([f"Sample_{group_name}_{j+1}" for j in range(n_samples)])
+        groups.extend([group_name] * n_samples)
+    
+    # Generate synthetic feature matrix with group separation
+    X = np.zeros((dataset_size, n_features))
+    
+    for i, group in enumerate(group_names):
+        group_mask = np.array(groups) == group
+        group_size = np.sum(group_mask)
+        
+        # Create group-specific signal in first few components
+        base_signal = np.zeros(n_features)
+        
+        # Add group separation in first 10 features
+        if i < 10:  # Ensure we don't exceed n_features
+            separation_features = min(10, n_features)
+            base_signal[:separation_features] = np.random.normal(i * 2, 0.5, separation_features)
+        
+        # Generate data for this group
+        group_data = np.random.multivariate_normal(
+            base_signal, 
+            np.eye(n_features) * noise_level,
+            size=group_size
+        )
+        
+        X[group_mask] = group_data
+    
+    # Add batch effect if requested
+    batch_labels = None
+    if add_batch_effect:
+        n_batches = min(3, n_groups)  # Max 3 batches
+        batch_labels = [f"Batch_{(i % n_batches) + 1}" for i in range(dataset_size)]
+        
+        # Add batch effect to random features
+        batch_effect_features = np.random.choice(n_features, size=min(20, n_features), replace=False)
+        for i, batch in enumerate(set(batch_labels)):
+            batch_mask = np.array(batch_labels) == batch
+            X[batch_mask, batch_effect_features] += np.random.normal(i * 0.5, 0.2, len(batch_effect_features))
+    
+    # Perform PCA
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+    
+    pca = PCA(n_components=min(3, n_features, dataset_size))
+    X_pca = pca.fit_transform(X_scaled)
+    
+    # Ensure we have at least 3 components (pad with zeros if necessary)
+    if X_pca.shape[1] < 3:
+        padding = np.zeros((X_pca.shape[0], 3 - X_pca.shape[1]))
+        X_pca = np.hstack([X_pca, padding])
+        
+        # Pad explained variance
+        explained_var = list(pca.explained_variance_ratio_)
+        while len(explained_var) < 3:
+            explained_var.append(0.0)
+    else:
+        explained_var = pca.explained_variance_ratio_[:3]
+    
+    # Create result dictionary
+    result = {
+        'sample_ids': sample_ids,
+        'groups': groups,
+        'batch_labels': batch_labels,
+        'pca_coords': X_pca[:, :3],  # First 3 components
+        'explained_variance': {
+            'pc1': float(explained_var[0]),
+            'pc2': float(explained_var[1]),
+            'pc3': float(explained_var[2])
+        },
+        'stats': {
+            'total_samples': dataset_size,
+            'total_features': n_features,
+            'groups': group_names
+        }
+    }
+    
+    # Cache the result
+    _pca_cache[cache_key] = result
+    print(f"PCA dataset generated and cached: {cache_key}")
+    
+    return result
 
 def categorize_points(df: pl.DataFrame, p_threshold: float, log_fc_min: float, log_fc_max: float) -> pl.DataFrame:
     """Categorize data points using Polars expressions for optimal performance"""
@@ -322,7 +477,7 @@ async def get_volcano_data(filters: FilterParams):
         
         # Determine max points based on LOD mode
         if filters.lod_mode:
-            effective_max_points = get_lod_max_points(filters.zoom_level)
+            effective_max_points = get_lod_max_points(filters.zoom_level, filters.max_points)
         else:
             effective_max_points = filters.max_points
         
@@ -397,126 +552,6 @@ async def get_volcano_data_get(
     
     return await get_volcano_data(filters)
 
-# PCA Functions
-@lru_cache(maxsize=20)
-def generate_pca_dataset(
-    n_samples: int, 
-    n_features: int, 
-    n_groups: int, 
-    add_batch_effect: bool = False, 
-    noise_level: float = 0.1
-) -> tuple:
-    """Generate synthetic multi-omics data and compute PCA"""
-    
-    cache_key = f"{n_samples}_{n_features}_{n_groups}_{add_batch_effect}_{noise_level}"
-    
-    if cache_key in _pca_cache:
-        return _pca_cache[cache_key]
-    
-    print(f"Generating PCA dataset: {n_samples} samples, {n_features} features, {n_groups} groups")
-    
-    # Generate synthetic multi-omics data with realistic group separation
-    np.random.seed(42)
-    
-    # Create well-separated clusters for groups
-    centers = np.random.randn(n_groups, n_features) * 3
-    X, y = make_blobs(
-        n_samples=n_samples,
-        centers=centers,
-        n_features=n_features,
-        cluster_std=1.0 + noise_level,
-        random_state=42
-    )
-    
-    # Add batch effect if requested
-    if add_batch_effect:
-        n_batches = min(4, n_groups)  # Max 4 batches
-        batch_labels = np.random.choice(n_batches, n_samples)
-        
-        # Add systematic batch effects
-        for batch in range(n_batches):
-            batch_mask = batch_labels == batch
-            batch_effect = np.random.randn(n_features) * 0.5
-            X[batch_mask] += batch_effect
-    else:
-        batch_labels = np.zeros(n_samples, dtype=int)
-    
-    # Standardize features
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-    
-    # Compute PCA
-    pca = PCA(n_components=3)
-    X_pca = pca.fit_transform(X_scaled)
-    
-    # Create sample IDs
-    sample_ids = [f"Sample_{i+1:04d}" for i in range(n_samples)]
-    group_labels = [f"Group_{group+1}" for group in y]
-    batch_labels_str = [f"Batch_{batch+1}" if add_batch_effect else None for batch in batch_labels]
-    
-    # Prepare data
-    pca_data = []
-    for i in range(n_samples):
-        pca_data.append({
-            'sample_id': sample_ids[i],
-            'pc1': float(X_pca[i, 0]),
-            'pc2': float(X_pca[i, 1]),
-            'pc3': float(X_pca[i, 2]),
-            'group': group_labels[i],
-            'batch': batch_labels_str[i]
-        })
-    
-    explained_variance = {
-        'pc1': float(pca.explained_variance_ratio_[0]),
-        'pc2': float(pca.explained_variance_ratio_[1]),
-        'pc3': float(pca.explained_variance_ratio_[2])
-    }
-    
-    stats = {
-        'total_samples': n_samples,
-        'total_features': n_features,
-        'groups': list(set(group_labels))
-    }
-    
-    result = (pca_data, explained_variance, stats)
-    _pca_cache[cache_key] = result
-    
-    print(f"PCA dataset generated and cached. Explained variance: PC1={explained_variance['pc1']:.3f}, PC2={explained_variance['pc2']:.3f}, PC3={explained_variance['pc3']:.3f}")
-    
-    return result
-
-def intelligent_pca_sampling(data: List[dict], max_points: int) -> List[dict]:
-    """Intelligent sampling for PCA data that preserves group distribution"""
-    if len(data) <= max_points:
-        return data
-    
-    # Group by group label
-    groups = {}
-    for point in data:
-        group = point['group']
-        if group not in groups:
-            groups[group] = []
-        groups[group].append(point)
-    
-    # Sample proportionally from each group
-    sampled_data = []
-    n_groups = len(groups)
-    points_per_group = max_points // n_groups
-    remaining_points = max_points % n_groups
-    
-    for i, (group, points) in enumerate(groups.items()):
-        # Give extra points to first few groups if there's a remainder
-        group_points = points_per_group + (1 if i < remaining_points else 0)
-        
-        if len(points) <= group_points:
-            sampled_data.extend(points)
-        else:
-            # Random sampling within group
-            indices = np.random.choice(len(points), group_points, replace=False)
-            sampled_data.extend([points[idx] for idx in indices])
-    
-    return sampled_data
-
 @app.get("/api/pca-cache-status")
 async def pca_cache_status():
     """Get current PCA cache status"""
@@ -527,80 +562,68 @@ async def pca_cache_status():
 
 @app.post("/api/clear-cache")
 async def clear_cache():
-    """Clear all cached data to free memory"""
+    """Clear all caches"""
     global _data_cache, _pca_cache
-    
-    # Store counts before clearing
-    volcano_cache_count = len(_data_cache)
-    pca_cache_count = len(_pca_cache)
-    
-    # Clear all caches
     _data_cache.clear()
     _pca_cache.clear()
-    
-    # Also clear the LRU caches
-    get_cached_dataset.cache_clear()
-    generate_pca_dataset.cache_clear()
-    
     return {
-        "message": "Cache cleared successfully",
-        "cleared": {
-            "volcano_datasets": volcano_cache_count,
-            "pca_datasets": pca_cache_count,
-            "total_cleared": volcano_cache_count + pca_cache_count
-        }
+        "message": "All caches cleared successfully",
+        "volcano_cache_size": len(_data_cache),
+        "pca_cache_size": len(_pca_cache)
     }
 
 @app.get("/api/pca-data", response_model=PCAResponse)
 async def get_pca_data(
-    dataset_size: int = Query(1000, ge=100, le=100000),
-    n_features: int = Query(100, ge=10, le=2000),  # Reduced max features to prevent crashes
-    n_groups: int = Query(3, ge=2, le=8),
+    dataset_size: int = Query(1000, ge=10, le=100000),
+    n_features: int = Query(100, ge=10, le=10000),
+    n_groups: int = Query(3, ge=2, le=10),
     max_points: int = Query(10000, ge=100, le=50000),
     add_batch_effect: bool = Query(False),
-    noise_level: float = Query(0.1, ge=0.01, le=1.0)
+    noise_level: float = Query(0.1, ge=0.01, le=2.0)
 ):
     """
-    Generate and return PCA data with 3D coordinates
+    GET endpoint for PCA data with query parameters
     """
     try:
-        # Safety check for performance-critical combinations
-        if dataset_size > 10000 and n_features > 1000:
-            raise HTTPException(
-                status_code=400, 
-                detail="High dataset size with high feature count may cause performance issues. Please reduce either dataset size (<10K) or features (<1K)."
-            )
-        
-        if n_features > 2000:
-            raise HTTPException(
-                status_code=400,
-                detail="Feature count exceeds safe limit (2000). Please reduce to prevent system overload."
-            )
-        # Generate PCA dataset
-        pca_data, explained_variance, stats = generate_pca_dataset(
+        # Get cached PCA data
+        pca_result = get_cached_pca_dataset(
             dataset_size, n_features, n_groups, add_batch_effect, noise_level
         )
         
-        # Apply intelligent sampling if needed
-        points_before_sampling = len(pca_data)
-        is_downsampled = len(pca_data) > max_points
+        # Convert to list of PCADataPoint objects
+        data_points = []
+        points_before_sampling = len(pca_result['sample_ids'])
+        is_downsampled = points_before_sampling > max_points
         
+        # Apply downsampling if necessary
         if is_downsampled:
-            pca_data = intelligent_pca_sampling(pca_data, max_points)
+            # Simple random sampling for PCA data
+            indices = np.random.choice(points_before_sampling, size=max_points, replace=False)
+            indices = sorted(indices)  # Keep order for consistency
+        else:
+            indices = range(points_before_sampling)
         
-        # Convert to Pydantic models
-        data_points = [PCADataPoint(**point) for point in pca_data]
+        for i in indices:
+            data_points.append(PCADataPoint(
+                sample_id=pca_result['sample_ids'][i],
+                pc1=float(pca_result['pca_coords'][i, 0]),
+                pc2=float(pca_result['pca_coords'][i, 1]),
+                pc3=float(pca_result['pca_coords'][i, 2]),
+                group=pca_result['groups'][i],
+                batch=pca_result['batch_labels'][i] if pca_result['batch_labels'] else None,
+                metadata={}
+            ))
         
         return PCAResponse(
             data=data_points,
-            explained_variance=explained_variance,
-            stats=stats,
+            explained_variance=pca_result['explained_variance'],
+            stats=pca_result['stats'],
             is_downsampled=is_downsampled,
             points_before_sampling=points_before_sampling
         )
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error generating PCA data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error processing PCA data: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
