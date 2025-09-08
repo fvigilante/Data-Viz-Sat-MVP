@@ -548,7 +548,8 @@ npm run start
 
 ## 🚀 Deployment & Production
 
-This project supports three deployment methods: local Docker development, manual Google Cloud deployment, and automated CI/CD deployment. Choose the method that best fits your development workflow.
+This project supports three deployment methods: local Docker development available in "http://localhost:3000/" and automated CI/CD deployment with GCP Cloud Run and Deploy, triggered by GitHub "main" branch new commits,  available in "https://data-viz-sat-mvp-18592493990.europe-west1.run.app/".
+Choose the method that best fits your development workflow.
 
 ### 🐳 Local Docker Development
 
@@ -559,9 +560,6 @@ Perfect for development and testing the full multi-container setup locally.
 # Build and start both containers
 docker-compose build
 docker-compose up -d
-
-# Run comprehensive tests
-./test-local-docker.ps1
 
 # Access the application
 # Frontend: http://localhost:3000
@@ -595,11 +593,8 @@ docker-compose exec web sh
 docker-compose exec api bash
 \`\`\`
 
-See [README-Docker-Local.md](README-Docker-Local.md) for detailed local development guide.
 
 ### ☁️ Google Cloud Run Multi-Container Deployment
-
-#### Method 1: Automated CI/CD Deployment (Recommended)
 
 The repository includes an automated GitHub trigger that builds and deploys on every push to `main`.
 
@@ -640,46 +635,7 @@ gcloud builds log BUILD_ID --follow
 4. **Deploy Multi-Container Service**: Atomic deployment with zero downtime
 5. **Health Checks**: Automatic verification of service health
 
-#### Method 2: Manual Deployment
 
-For direct control over the deployment process.
-
-**Prerequisites**
-\`\`\`bash
-# Install Google Cloud SDK
-# https://cloud.google.com/sdk/docs/install
-
-# Authenticate and set project
-gcloud auth login
-gcloud config set project YOUR-PROJECT-ID
-gcloud config set run/region europe-west1
-\`\`\`
-
-**One-Command Deployment**
-\`\`\`bash
-# Use the automated deployment script
-./deploy-and-test.ps1
-
-# Or run individual steps:
-gcloud builds submit --config cloudbuild.yaml
-gcloud run services replace service.yaml --region=europe-west1
-\`\`\`
-
-**Manual Step-by-Step**
-\`\`\`bash
-# 1. Build and push images
-gcloud builds submit --config cloudbuild.yaml
-
-# 2. Deploy the multi-container service
-gcloud run services replace service.yaml \
-  --region=europe-west1 \
-  --platform=managed
-
-# 3. Get service URL
-gcloud run services describe data-viz-satellite \
-  --region=europe-west1 \
-  --format="value(status.url)"
-\`\`\`
 
 ### 🏗️ Multi-Container Architecture
 
@@ -727,26 +683,7 @@ spec:
 ✅ **Cost Optimization**: Pay only for resources each component needs  
 ✅ **Zero Downtime Deployments**: Atomic deployments with automatic rollback  
 
-### 🔍 Monitoring & Troubleshooting
 
-#### Service Health Checks
-\`\`\`bash
-# Check service status
-gcloud run services describe data-viz-satellite --region=europe-west1
-
-# View recent logs
-gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=data-viz-satellite" --limit=20
-
-# Monitor specific container
-gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=data-viz-satellite AND labels.container_name=api" --limit=10
-\`\`\`
-
-#### Performance Monitoring
-- **Cloud Run Metrics**: CPU, memory, request latency in Google Cloud Console
-- **Application Logs**: Structured logging for both containers
-- **Health Endpoints**: 
-  - Frontend: `https://your-service-url/`
-  - Backend: `https://your-service-url/api/health` (proxied through frontend)
 
 #### Common Issues & Solutions
 
@@ -784,59 +721,15 @@ gcloud logging read "resource.type=cloud_run_revision" --limit=50
 # - Ensure proper resource limits (memory for data processing)
 \`\`\`
 
-### 🚀 Production Optimization
-
-#### Performance Tuning
-- **Container Resources**: Adjust CPU/memory based on usage patterns
-- **Concurrency**: Tune `containerConcurrency` for optimal throughput
-- **Caching**: Enable Cloud CDN for static assets
-- **Database**: Consider Cloud SQL or Firestore for persistent data
-
-#### Security Best Practices
-- **IAM**: Use least-privilege service accounts
-- **VPC**: Deploy in private VPC for sensitive data
-- **Secrets**: Use Secret Manager for API keys and credentials
-- **HTTPS**: Automatic SSL/TLS termination with Cloud Run
-
-#### Cost Optimization
-- **Auto-scaling**: Configure min/max instances based on traffic
-- **Resource Limits**: Right-size CPU and memory allocations
-- **Regional Deployment**: Choose regions close to your users
-- **Request Timeout**: Optimize timeout settings to prevent resource waste
-
 ### 📋 Deployment Summary
 
 | Method | Use Case | Setup Time | Automation | Best For |
 |--------|----------|------------|------------|----------|
 | **🐳 Local Docker** | Development & Testing | 5 minutes | Manual | Local development, debugging |
 | **🤖 Automated CI/CD** | Production | 10 minutes setup | Full automation | Production deployments, team collaboration |
-| **⚡ Manual Cloud** | Quick deployment | 2 minutes | Semi-automated | Hotfixes, one-off deployments |
 
-**Live Application**: https://data-viz-satellite-18592493990.europe-west1.run.app
+**Live Application**: https://data-viz-sat-mvp-18592493990.europe-west1.run.app/
 
-### Alternative Deployment Options
-
-#### Vercel (Frontend Only)
-\`\`\`bash
-# Install Vercel CLI
-npm i -g vercel
-
-# Deploy to Vercel
-vercel
-
-# Production deployment
-vercel --prod
-\`\`\`
-
-#### Docker Compose (Development)
-\`\`\`bash
-# Build and run both containers locally
-docker-compose up --build
-
-# Access the application
-# Frontend: http://localhost:3000
-# API: http://localhost:8000
-\`\`\`
 
 ### Environment Configuration
 
@@ -858,11 +751,6 @@ PORT=8080
 FRONTEND_URL=http://127.0.0.1:8080
 PORT=9000
 \`\`\`
-
-#### Performance Monitoring
-- **Vercel Analytics**: Built-in performance monitoring
-- **Core Web Vitals**: Optimized for Google's performance metrics
-- **Bundle Analysis**: Use `npm run analyze` to inspect bundle size
 
 ## 📊 Data Format Requirements
 
@@ -1129,62 +1017,11 @@ DEBUG=volcano-plot:* npm run dev
 - **Safari**: Supported with WebGL limitations on older versions
 - **Mobile**: Limited support - desktop/tablet recommended
 
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
 ## 🙏 Acknowledgments
 
 - **ClassyFire**: Chemical classification system
 - **Plotly.js**: Interactive visualization library
 - **shadcn/ui**: Beautiful component library
-- **Metabolomics Community**: For feedback and requirements
-
-## 📞 Support & Contributing
-
-### Getting Help
-For questions, issues, or feature requests:
-- **GitHub Issues**: [Open an issue](https://github.com/fvigilante/Data-Viz-Sat-MVP/issues)
-- **Documentation**: Check this README for common solutions
-- **Discussions**: Use GitHub Discussions for questions and ideas
-
-### Contributing Guidelines
-1. **Fork the repository** and create a feature branch
-2. **Follow TypeScript best practices** and maintain type safety
-3. **Add tests** for new functionality when applicable
-4. **Update documentation** for any API or feature changes
-5. **Submit a Pull Request** with a clear description
-
-### Development Workflow
-\`\`\`bash
-# Create feature branch
-git checkout -b feature/amazing-feature
-
-# Make your changes
-npm run dev
-
-# Test your changes
-npm run build
-npm run lint
-
-# Commit and push
-git commit -m 'Add amazing feature'
-git push origin feature/amazing-feature
-\`\`\`
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
 
 ### Technologies & Libraries
 - **[Next.js](https://nextjs.org/)**: The React framework for production
@@ -1194,14 +1031,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **[Papa Parse](https://www.papaparse.com/)**: Powerful CSV parsing library
 - **[Zod](https://zod.dev/)**: TypeScript-first schema validation
 
-### Scientific Resources
-- **[ClassyFire](http://classyfire.wishartlab.com/)**: Chemical classification system
-- **[HMDB](https://hmdb.ca/)**: Human Metabolome Database
-- **[KEGG](https://www.kegg.jp/)**: Kyoto Encyclopedia of Genes and Genomes
-
 ### Development Tools
 - **[Vercel](https://vercel.com/)**: Deployment and hosting platform
-- **[Geist Font](https://vercel.com/font)**: Modern typography system
 - **[Lucide React](https://lucide.dev/)**: Beautiful icon library
 
 ---
