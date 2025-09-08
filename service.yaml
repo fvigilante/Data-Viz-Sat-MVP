@@ -1,7 +1,7 @@
 apiVersion: serving.knative.dev/v1
 kind: Service
 metadata:
-  name: data-viz-satellite
+  name: data-viz-sat-mvp
   annotations:
     run.googleapis.com/ingress: all
 spec:
@@ -16,7 +16,7 @@ spec:
       containers:
       # Frontend container (Next.js) - Main container with exposed port
       - name: web
-        image: gcr.io/data-viz-satellite-mvp/data-viz-satellite-frontend:latest
+        image: gcr.io/PROJECT_ID/data-viz-satellite-frontend:latest
         ports:
         - containerPort: 8080
         env:
@@ -34,7 +34,7 @@ spec:
       
       # API container (FastAPI) - Sidecar container
       - name: api
-        image: gcr.io/data-viz-satellite-mvp/data-viz-satellite-api:latest
+        image: gcr.io/PROJECT_ID/data-viz-satellite-api:latest
         env:
         - name: FRONTEND_URL
           value: "http://127.0.0.1:8080"

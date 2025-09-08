@@ -4,7 +4,7 @@ steps:
     args:
       - 'build'
       - '-t'
-      - 'gcr.io/data-viz-satellite-mvp/data-viz-satellite-api:latest'
+      - 'gcr.io/$PROJECT_ID/data-viz-satellite-api:latest'
       - '-f'
       - 'api/Dockerfile'
       - './api'
@@ -15,7 +15,7 @@ steps:
     args:
       - 'build'
       - '-t'
-      - 'gcr.io/data-viz-satellite-mvp/data-viz-satellite-frontend:latest'
+      - 'gcr.io/$PROJECT_ID/data-viz-satellite-frontend:latest'
       - '-f'
       - 'Dockerfile.production'
       - '.'
@@ -25,7 +25,7 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
-      - 'gcr.io/data-viz-satellite-mvp/data-viz-satellite-api:latest'
+      - 'gcr.io/$PROJECT_ID/data-viz-satellite-api:latest'
     id: 'push-api'
     waitFor: ['build-api']
 
@@ -33,7 +33,7 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
-      - 'gcr.io/data-viz-satellite-mvp/data-viz-satellite-frontend:latest'
+      - 'gcr.io/$PROJECT_ID/data-viz-satellite-frontend:latest'
     id: 'push-frontend'
     waitFor: ['build-frontend']
 
@@ -43,8 +43,8 @@ steps:
     args:
       - '-c'
       - |
-        # Use service.yaml directly (PROJECT_ID already replaced)
-        cp service.yaml service-deploy.yaml
+        # Replace PROJECT_ID in service.yaml
+        sed "s/PROJECT_ID/$PROJECT_ID/g" service.yaml > service-deploy.yaml
         
         # Deploy the service
         gcloud run services replace service-deploy.yaml --region=$_DEPLOY_REGION --platform=managed
@@ -60,5 +60,5 @@ options:
   machineType: 'E2_HIGHCPU_8'
 
 images:
-  - 'gcr.io/data-viz-satellite-mvp/data-viz-satellite-api:latest'
-  - 'gcr.io/data-viz-satellite-mvp/data-viz-satellite-frontend:latest'
+  - 'gcr.io/$PROJECT_ID/data-viz-satellite-api:latest'
+  - 'gcr.io/$PROJECT_ID/data-viz-satellite-frontend:latest'

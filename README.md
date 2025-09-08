@@ -415,13 +415,15 @@ export const DegRowSchema = z.object({
 ## 🚀 Getting Started
 
 ### Prerequisites
-- **Node.js 18+**: Required for Next.js 15 and modern JavaScript features
-- **Package Manager**: npm (included with Node.js), yarn, or pnpm
+- **Docker & Docker Compose**: Required for the easiest setup (recommended)
+- **Alternative**: Node.js 18+ and Python 3.11+ for manual setup
 - **Modern Browser**: Chrome 90+, Firefox 88+, Safari 14+, or Edge 90+
 
 ### Installation
 
-#### Option 1: Full Stack Development (Recommended)
+#### Option 1: Docker Development (Recommended)
+
+The easiest way to run the full application locally with both frontend and backend.
 
 1. **Clone the repository**
    \`\`\`bash
@@ -429,37 +431,75 @@ export const DegRowSchema = z.object({
    cd Data-Viz-Sat-MVP
    \`\`\`
 
-2. **Install frontend dependencies**
+2. **Start the application with Docker**
    \`\`\`bash
+   # Build and run both containers in detached mode
+   docker-compose up -d
+   
+   # Or build first, then run
+   docker-compose build
+   docker-compose up -d
+   \`\`\`
+
+3. **Access the applications**
+   - **Frontend**: [http://localhost:3000](http://localhost:3000)
+   - **API**: [http://localhost:8000](http://localhost:8000)
+   - **API Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
+
+4. **Useful Docker commands**
+   \`\`\`bash
+   # View logs
+   docker-compose logs -f
+   
+   # Stop the application
+   docker-compose down
+   
+   # Rebuild after code changes
+   docker-compose up -d --build
+   
+   # View container status
+   docker-compose ps
+   \`\`\`
+
+#### Option 2: Manual Development Setup
+
+If you prefer to run the services manually without Docker.
+
+1. **Clone and install frontend dependencies**
+   \`\`\`bash
+   git clone https://github.com/fvigilante/Data-Viz-Sat-MVP.git
+   cd Data-Viz-Sat-MVP
    npm install
    \`\`\`
 
-3. **Install Python dependencies for FastAPI**
+2. **Install Python dependencies for FastAPI**
    \`\`\`bash
    cd api
    pip install -r requirements.txt
    cd ..
    \`\`\`
 
-4. **Run both servers concurrently**
+3. **Run both servers concurrently**
    \`\`\`bash
-   # Recommended: Single command to start both servers
+   # Option A: Single command (requires Python)
    npm run dev:full
    
-   # Alternative: Run servers individually
-   npm run dev:api    # FastAPI server on port 8000
-   npm run dev        # Next.js server on port 3000
+   # Option B: Run servers in separate terminals
+   # Terminal 1 - FastAPI backend
+   npm run dev:api
    
-   # Alternative: Use shell script (Linux/Mac)
-   chmod +x scripts/dev.sh && ./scripts/dev.sh
+   # Terminal 2 - Next.js frontend  
+   npm run dev
    \`\`\`
 
-5. **Access the applications**
+4. **Access the applications**
    - **Frontend**: [http://localhost:3000](http://localhost:3000)
    - **API**: [http://localhost:8000](http://localhost:8000)
    - **API Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
 
-#### Option 2: Frontend Only
+#### Option 3: Frontend Only
+
+For frontend development without the FastAPI backend.
 
 1. **Install dependencies**
    \`\`\`bash
@@ -473,17 +513,8 @@ export const DegRowSchema = z.object({
 
 3. **Open your browser**
    Navigate to [http://localhost:3000](http://localhost:3000)
-
-#### Option 3: Docker Development
-
-1. **Build and run with Docker Compose**
-   \`\`\`bash
-   docker-compose up --build
-   \`\`\`
-
-2. **Access the applications**
-   - **Frontend**: [http://localhost:3000](http://localhost:3000)
-   - **API**: [http://localhost:8000](http://localhost:8000)
+   
+   *Note: FastAPI-powered features will not work in this mode.*
 
 ### Build for Production
 
