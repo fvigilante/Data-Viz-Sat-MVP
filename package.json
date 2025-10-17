@@ -7,11 +7,27 @@
     "dev": "next dev",
     "dev:full": "py scripts/dev.py",
     "dev:api": "cd api && uvicorn main:app --reload --host 0.0.0.0 --port 8000",
+    "dev:r": "cd r-backend && Rscript plumber-api.R",
+    "dev:r-start": "cd r-backend && ./start-server.sh",
+    "dev:r-stop": "cd r-backend && ./stop-server.sh",
+    "dev:r-status": "cd r-backend && ./server-status.sh",
     "lint": "next lint",
     "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:r": "cd r-backend && Rscript test-comprehensive-suite.R",
+    "test:integration": "cd r-backend && Rscript test-integration-suite.R",
+    "test:r-validation": "cd r-backend && Rscript test-output-validation.R",
+    "benchmark:quick": "cd r-backend && Rscript quick-benchmark.R",
+    "benchmark:full": "cd r-backend && Rscript benchmark-framework.R run",
+    "benchmark:memory": "cd r-backend && Rscript memory-profiler.R profile",
     "docker:build": "docker-compose build",
     "docker:up": "docker-compose up",
-    "docker:down": "docker-compose down"
+    "docker:down": "docker-compose down",
+    "docker:dev": "docker-compose -f docker-compose.dev.yml up --build",
+    "docker:dev-down": "docker-compose -f docker-compose.dev.yml down",
+    "deploy:cloud-run": "bash deploy-cloud-run.sh",
+    "build:all": "docker-compose build"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
@@ -75,8 +91,16 @@
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@testing-library/jest-dom": "^6.1.4",
+    "@testing-library/react": "^15.0.0",
+    "@testing-library/user-event": "^14.5.1",
+    "@types/jest": "^29.5.8",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
     "postcss": "^8.5",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^1.0.0",
+    "@vitejs/plugin-react": "^4.1.1"
   }
 }

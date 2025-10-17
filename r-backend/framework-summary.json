@@ -1,0 +1,39 @@
+{
+  "framework_name": "R vs Python Volcano Plot Benchmarking Framework",
+  "version": "1.0.0",
+  "created": "2025-10-17T09:14:19.921Z",
+  "components": {
+    "core_scripts": 4,
+    "runner_scripts": 2,
+    "documentation": 1,
+    "total_files": 7
+  },
+  "capabilities": [
+    "Quick performance comparison",
+    "Comprehensive benchmark suite",
+    "Memory usage profiling",
+    "Automated scheduled benchmarks",
+    "Cross-platform execution",
+    "HTML report generation",
+    "Performance alert system",
+    "Historical result tracking"
+  ],
+  "requirements": {
+    "r_packages": [
+      "httr",
+      "jsonlite",
+      "data.table",
+      "microbenchmark",
+      "knitr"
+    ],
+    "apis_required": [
+      "FastAPI server",
+      "R Plumber API server"
+    ],
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ]
+  }
+}

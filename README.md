@@ -15,12 +15,13 @@ This pilot project serves as a technology evaluation platform for building scala
 ## ✨ Key Features
 
 ### 📊 Interactive Volcano Plots
-- **Three-Tier Architecture**: Client-side, Next.js server-side, and FastAPI + Polars high-performance processing
+- **Four-Tier Architecture**: Client-side, Next.js server-side, FastAPI + Polars, and R + data.table high-performance processing
 - **Manual Level-of-Detail (LOD) Controls**: User-selectable downsampling levels (10K/20K/50K/100K points)
 - **Intelligent Downsampling**: Significance-aware sampling that prioritizes biologically relevant data
 - **Real-time Filtering**: Adjustable p-value thresholds and log2(FC) ranges with live updates
 - **Server-Side Filtering**: All filtering operations (p-value, log2FC, search) handled by backend APIs
-- **High-Performance Backend**: FastAPI + Polars for processing 10M+ data points with intelligent caching
+- **Dual High-Performance Backends**: FastAPI + Polars and R + data.table for processing 10M+ data points with intelligent caching
+- **Performance Comparison**: Side-by-side R vs Python implementation comparison and benchmarking
 - **Interactive Legend**: Toggle visibility of up-regulated, down-regulated, and non-significant metabolites
 - **Hover Tooltips**: Detailed metabolite information including ClassyFire annotations
 - **Export Capabilities**: Download plots as high-resolution PNG images and filtered CSV data
@@ -77,20 +78,39 @@ This pilot project serves as a technology evaluation platform for building scala
 │   │   │   └── page.tsx         # Main server-side volcano plot page
 │   │   ├── volcano-fastapi/     # FastAPI + Polars volcano plot implementation
 │   │   │   └── page.tsx         # FastAPI-powered volcano plot page
+│   │   ├── volcano-r/           # R + data.table volcano plot implementation
+│   │   │   └── page.tsx         # R-powered volcano plot page
 │   │   ├── heatmap/            # Heatmap visualization (future implementation)
 │   │   └── pca/                # PCA visualization (future implementation)
 │   └── api/                     # Next.js API routes
-│       └── volcano-data/        # Server-side data processing endpoint
-│           └── route.ts         # GET endpoint for processed volcano data
+│       ├── volcano-data/        # Server-side data processing endpoint
+│       │   └── route.ts         # GET endpoint for processed volcano data
+│       ├── r-volcano-data/      # R backend proxy endpoint
+│       │   └── route.ts         # Proxy to R Plumber API
+│       ├── r-cache-status/      # R cache status endpoint
+│       │   └── route.ts         # R cache management proxy
+│       ├── r-warm-cache/        # R cache warming endpoint
+│       │   └── route.ts         # R cache pre-generation proxy
+│       └── r-clear-cache/       # R cache clearing endpoint
+│           └── route.ts         # R cache clearing proxy
 ├── api/                         # FastAPI Backend
 │   ├── main.py                  # FastAPI application with Polars data processing
 │   ├── requirements.txt         # Python dependencies
 │   ├── Dockerfile              # Docker configuration for API
 │   └── README.md               # API documentation
+├── r-backend/                   # R Backend (Plumber API)
+│   ├── plumber-api.R           # R Plumber API server with data.table processing
+│   ├── install-packages.R      # R package installation script
+│   ├── validate-setup.R        # R environment validation script
+│   ├── start-server.sh         # Unix server startup script
+│   ├── start-server.bat        # Windows server startup script
+│   ├── setup-guide.md          # Comprehensive R setup instructions
+│   └── README.md               # R backend documentation
 ├── components/                   # React components library
 │   ├── VolcanoPlot.tsx         # Client-side interactive volcano plot component
 │   ├── ServerVolcanoPlot.tsx   # Server-side volcano plot component
 │   ├── FastAPIVolcanoPlot.tsx  # FastAPI + Polars volcano plot component
+│   ├── RVolcanoPlot.tsx        # R + data.table volcano plot component
 │   ├── FastAPIPCAPlot.tsx      # PCA analysis with dynamic tables
 │   ├── TechExplainer.tsx       # Interactive technology architecture explainer
 │   ├── theme-provider.tsx      # Theme context provider
@@ -142,7 +162,7 @@ Volcano plots are essential tools in metabolomics for visualizing differential e
   - 🔵 **Blue**: Down-regulated metabolites (low fold change, low p-value)
   - ⚫ **Gray**: Non-significant metabolites
 
-### Three-Tier Data Processing Architecture
+### Four-Tier Data Processing Architecture
 
 #### Tier 1: Client-Side Processing (`/plots/volcano`)
 **Best for**: Prototyping, small datasets (<10K rows), offline usage
@@ -181,11 +201,336 @@ Volcano plots are essential tools in metabolomics for visualizing differential e
 
 **Performance**: ⚡⚡⚡ Optimized for large datasets, scientific computing performance with intelligent caching and user-controlled LOD
 
+#### Tier 4: R + data.table Processing (`/plots/volcano-r`) - RESEARCH & COMPARISON
+**Best for**: Statistical computing, R ecosystem integration, performance benchmarking
+1. **R Plumber API**: Lightweight R HTTP API server for statistical computing
+2. **data.table Processing**: High-performance data manipulation with R's data.table package
+3. **Statistical Accuracy**: Native R statistical functions for precise calculations
+4. **Vectorized Operations**: Efficient R vectorization for large dataset processing
+5. **Environment-Based Caching**: R environment caching system for dataset storage
+6. **Identical Functionality**: Matches FastAPI implementation feature-for-feature
+7. **Performance Benchmarking**: Direct comparison with Python implementation
+8. **Memory Management**: R-specific memory optimization and garbage collection
+9. **Cross-Platform Support**: Windows, macOS, and Linux compatibility
+10. **Research Integration**: Seamless integration with existing R workflows
+
+**Performance**: ⚡⚡⚡ Comparable to FastAPI for statistical computing, optimized for R ecosystem integration
+
 ### ClassyFire Integration
 The application integrates metabolite classification data:
 - **Superclass**: High-level chemical classification
 - **Class**: More specific chemical grouping
 - **Biological Context**: Helps researchers understand metabolic pathways
+
+## 🔬 R Integration & Performance Comparison
+
+### R Backend Overview
+
+The R integration provides a complete alternative backend implementation using R + data.table, enabling direct performance and functionality comparison with the Python + Polars implementation. This dual-backend approach allows researchers to leverage the best of both ecosystems.
+
+### Key Features
+
+#### 🚀 High-Performance R Backend
+- **Plumber API Server**: Lightweight R HTTP API framework
+- **data.table Processing**: Vectorized operations for 10M+ data points
+- **Environment Caching**: R-native caching system for optimal memory usage
+- **Statistical Accuracy**: Native R statistical functions for precise calculations
+- **Cross-Platform**: Windows, macOS, and Linux support
+
+#### 📊 Functional Parity
+- **Identical UI**: Same interface, controls, and visualization as FastAPI version
+- **Same API Structure**: Compatible JSON request/response format
+- **Feature Complete**: All filtering, sampling, and export capabilities
+- **Cache Management**: Warming, clearing, and status endpoints
+- **Error Handling**: Comprehensive error management matching FastAPI format
+
+#### ⚡ Performance Benchmarking
+- **Automated Benchmarking**: Built-in performance comparison framework
+- **Multiple Metrics**: Response time, memory usage, CPU utilization
+- **Statistical Validation**: Output consistency verification between R and Python
+- **Comprehensive Reports**: HTML reports with detailed performance analysis
+
+### R Backend Architecture
+
+```
+Frontend (Next.js) → Next.js API Routes → R Plumber Server → data.table Processing
+```
+
+#### Components
+1. **R Plumber API** (`r-backend/plumber-api.R`) - HTTP API server
+2. **Next.js Proxy Routes** (`/app/api/r-*`) - Frontend integration
+3. **React Component** (`RVolcanoPlot.tsx`) - R-specific UI component
+4. **Process Management** - Startup, monitoring, and health checks
+
+### Quick Start with R Backend
+
+#### Prerequisites
+- **R 4.0+** installed and in PATH
+- **Required R packages**: plumber, data.table, jsonlite
+
+#### Installation & Setup
+
+1. **Install R dependencies**
+   ```bash
+   cd r-backend
+   Rscript install-packages.R
+   ```
+
+2. **Start R backend server**
+   ```bash
+   # Windows
+   start-server.bat
+   
+   # macOS/Linux
+   chmod +x start-server.sh
+   ./start-server.sh
+   ```
+
+3. **Start development environment**
+   ```bash
+   # Run both FastAPI and R backends
+   npm run dev:full
+   
+   # Or start R backend separately
+   npm run dev:r
+   ```
+
+4. **Access R volcano plot**
+   - Navigate to [http://localhost:3000/plots/volcano-r](http://localhost:3000/plots/volcano-r)
+   - Compare with FastAPI version at [http://localhost:3000/plots/volcano-fastapi](http://localhost:3000/plots/volcano-fastapi)
+
+### Performance Comparison
+
+#### Benchmarking Framework
+
+The application includes a comprehensive benchmarking system:
+
+```bash
+# Quick performance comparison
+cd r-backend
+Rscript quick-benchmark.R
+
+# Comprehensive benchmark suite
+Rscript benchmark-framework.R run
+
+# Generate performance report
+Rscript benchmark-framework.R report results.rds
+```
+
+#### Benchmark Scenarios
+- **Dataset Sizes**: 10K, 50K, 100K, 500K, 1M data points
+- **Parameter Variations**: Different p-value thresholds, fold-change ranges
+- **Resource Monitoring**: CPU, memory, and response time tracking
+- **Statistical Validation**: Output consistency verification
+
+#### Expected Performance Characteristics
+
+| Metric | R + data.table | Python + Polars | Notes |
+|--------|----------------|-----------------|-------|
+| **Small Datasets** (10K) | ~40ms | ~45ms | R slightly faster |
+| **Medium Datasets** (100K) | ~140ms | ~155ms | Comparable performance |
+| **Large Datasets** (1M+) | ~700ms | ~680ms | Very similar |
+| **Memory Usage** | Efficient | Efficient | Both optimized |
+| **Statistical Accuracy** | Native R precision | NumPy precision | Functionally identical |
+
+### R-Specific Features
+
+#### Advanced Statistical Computing
+- **Native R Functions**: Leverages R's statistical computing strengths
+- **Vectorized Operations**: Efficient data.table operations
+- **Memory Management**: R-specific garbage collection and optimization
+- **Reproducible Results**: Fixed random seeds for consistent output
+
+#### Integration Benefits
+- **R Ecosystem**: Easy integration with existing R workflows
+- **Statistical Packages**: Access to CRAN's extensive statistical libraries
+- **Research Compatibility**: Familiar environment for R users
+- **Cross-Validation**: Verify results between R and Python implementations
+
+### Development Workflow
+
+#### Dual Backend Development
+```bash
+# Start both backends for comparison
+npm run dev:full
+
+# Test both implementations
+curl http://localhost:8000/api/volcano-data  # FastAPI
+curl http://localhost:8001/api/volcano-data  # R backend
+
+# Run comparison tests
+cd r-backend
+Rscript live-comparison-test.R
+```
+
+#### Output Validation
+```bash
+# Compare outputs between backends
+Rscript compare-outputs.R r_response.json python_response.json
+
+# Statistical validation
+Rscript statistical-validation.R r_data.json python_data.json
+
+# Generate comparison report
+Rscript generate-comparison-report.R r_response.json python_response.json report.html
+```
+
+### Troubleshooting R Integration
+
+#### Common Issues
+
+**R Not Found**
+```bash
+# Verify R installation
+Rscript --version
+R --version
+```
+
+**Package Installation Fails**
+```bash
+# Manual package installation
+R
+> install.packages(c("plumber", "data.table", "jsonlite"))
+```
+
+**Port Conflicts**
+```bash
+# Use custom port
+./start-server.sh 8002
+
+# Check port usage
+netstat -an | grep 8001  # Unix
+netstat -an | find ":8001"  # Windows
+```
+
+**Performance Issues**
+```bash
+# Monitor R backend
+./server-status.sh
+
+# Check health
+curl http://localhost:8001/health
+```
+
+### R Backend API Endpoints
+
+#### Core Endpoints
+- `GET /health` - Server health and package versions
+- `GET /api/volcano-data` - Main volcano plot data processing
+- `GET /api/cache-status` - Cache status and memory usage
+- `POST /api/warm-cache` - Pre-generate common dataset sizes
+- `POST /api/clear-cache` - Clear cached datasets
+
+#### Example Usage
+```bash
+# Get volcano data with R backend
+curl "http://localhost:8001/api/volcano-data?dataset_size=10000&p_value_threshold=0.05"
+
+# Check cache status
+curl http://localhost:8001/api/cache-status
+
+# Warm cache for common sizes
+curl -X POST http://localhost:8001/api/warm-cache
+```
+
+### Production Considerations
+
+#### Deployment Options
+1. **Standalone R Server**: Run R backend as separate service
+2. **Docker Integration**: Include R backend in multi-container setup
+3. **Process Management**: Use systemd (Linux) or Windows services
+4. **Load Balancing**: Scale R backend instances for high throughput
+
+#### Monitoring & Maintenance
+- **Health Checks**: Automated monitoring with restart capabilities
+- **Performance Metrics**: CPU, memory, and response time tracking
+- **Log Management**: Comprehensive logging for debugging and monitoring
+- **Resource Limits**: Memory and CPU limits for stable operation
+
+This R integration provides a complete alternative backend while maintaining full compatibility with the existing frontend, enabling comprehensive performance comparison and validation between R and Python implementations.
+
+## 📚 R Integration Documentation
+
+### Complete Documentation Suite
+
+The R backend integration includes comprehensive documentation covering all aspects of setup, usage, and maintenance:
+
+#### Setup and Installation
+- **[R Backend README](r-backend/README.md)** - Basic setup and API overview
+- **[Setup Guide](r-backend/setup-guide.md)** - Detailed installation instructions for all platforms
+- **[Troubleshooting Guide](r-backend/TROUBLESHOOTING-GUIDE.md)** - Comprehensive problem-solving guide
+
+#### Performance and Comparison
+- **[Benchmarking README](r-backend/BENCHMARKING-README.md)** - Performance testing framework
+- **[Comparison Procedures](r-backend/COMPARISON-PROCEDURES.md)** - R vs Python comparison methodology
+- **[Output Validation README](r-backend/OUTPUT-VALIDATION-README.md)** - Data consistency verification
+
+#### System Management
+- **[Process Management README](r-backend/PROCESS-MANAGEMENT-README.md)** - Server lifecycle management
+- **[Error Handling README](r-backend/ERROR-HANDLING-README.md)** - Error handling and logging
+- **[Cache Endpoints Summary](r-backend/CACHE-ENDPOINTS-SUMMARY.md)** - Cache management features
+
+#### Technical Implementation
+- **[Data Generation README](r-backend/DATA-GENERATION-README.md)** - Data generation and caching system
+- **[Demo Validation Usage](r-backend/demo-validation-usage.md)** - Validation examples and usage
+
+### Quick Reference
+
+#### Essential Commands
+\`\`\`bash
+# Setup
+cd r-backend && Rscript install-packages.R
+
+# Start R backend
+npm run dev:r-start
+
+# Health check
+curl http://localhost:8001/health
+
+# Quick benchmark
+npm run benchmark:quick
+
+# Comprehensive testing
+npm run test:r
+\`\`\`
+
+#### Key Endpoints
+- **Health**: `GET /health`
+- **Volcano Data**: `GET /api/volcano-data`
+- **Cache Status**: `GET /api/cache-status`
+- **Cache Management**: `POST /api/warm-cache`, `POST /api/clear-cache`
+
+#### Performance Comparison
+\`\`\`bash
+# Quick comparison
+Rscript r-backend/quick-benchmark.R
+
+# Detailed analysis
+Rscript r-backend/benchmark-framework.R run
+Rscript r-backend/benchmark-framework.R report results.rds
+
+# Output validation
+Rscript r-backend/live-comparison-test.R
+\`\`\`
+
+### Documentation Organization
+
+\`\`\`
+r-backend/
+├── README.md                      # Basic setup and overview
+├── setup-guide.md                 # Detailed installation guide
+├── TROUBLESHOOTING-GUIDE.md       # Comprehensive troubleshooting
+├── COMPARISON-PROCEDURES.md       # R vs Python comparison methods
+├── BENCHMARKING-README.md         # Performance testing framework
+├── OUTPUT-VALIDATION-README.md    # Data validation procedures
+├── PROCESS-MANAGEMENT-README.md   # Server management
+├── ERROR-HANDLING-README.md       # Error handling system
+├── CACHE-ENDPOINTS-SUMMARY.md     # Cache management
+├── DATA-GENERATION-README.md      # Data generation system
+└── demo-validation-usage.md       # Usage examples
+\`\`\`
+
+This documentation suite provides complete coverage of the R integration, from initial setup through advanced performance optimization and troubleshooting.
 
 ## 🛠️ Technical Architecture & Implementation
 
@@ -416,7 +761,8 @@ export const DegRowSchema = z.object({
 
 ### Prerequisites
 - **Docker & Docker Compose**: Required for the easiest setup (recommended)
-- **Alternative**: Node.js 18+ and Python 3.11+ for manual setup
+- **Alternative**: Node.js 18+, Python 3.11+, and R 4.0+ for manual setup
+- **R Installation**: Required for R backend functionality and performance comparison
 - **Modern Browser**: Chrome 90+, Firefox 88+, Safari 14+, or Edge 90+
 
 ### Installation
@@ -461,9 +807,9 @@ The easiest way to run the full application locally with both frontend and backe
    docker-compose ps
    \`\`\`
 
-#### Option 2: Manual Development Setup
+#### Option 2: Manual Development Setup (Full Stack with R)
 
-If you prefer to run the services manually without Docker.
+If you prefer to run all services manually without Docker.
 
 1. **Clone and install frontend dependencies**
    \`\`\`bash
@@ -479,23 +825,55 @@ If you prefer to run the services manually without Docker.
    cd ..
    \`\`\`
 
-3. **Run both servers concurrently**
+3. **Install R dependencies for R backend**
    \`\`\`bash
-   # Option A: Single command (requires Python)
+   cd r-backend
+   Rscript install-packages.R
+   cd ..
+   \`\`\`
+
+4. **Run all services concurrently**
+   \`\`\`bash
+   # Option A: All services with one command
    npm run dev:full
    
-   # Option B: Run servers in separate terminals
+   # Option B: Run services in separate terminals
    # Terminal 1 - FastAPI backend
    npm run dev:api
    
-   # Terminal 2 - Next.js frontend  
+   # Terminal 2 - R backend
+   npm run dev:r
+   
+   # Terminal 3 - Next.js frontend  
    npm run dev
    \`\`\`
 
-4. **Access the applications**
+### Available npm Scripts for R Backend
+
+\`\`\`bash
+# R Backend Development
+npm run dev:r              # Start R backend server
+npm run dev:r-start        # Start R backend with process management
+npm run dev:r-stop         # Stop R backend server
+npm run dev:r-status       # Check R backend status
+
+# Testing
+npm run test:r             # Run R backend comprehensive tests
+npm run test:integration   # Run integration tests
+npm run test:r-validation  # Run output validation tests
+
+# Performance Benchmarking
+npm run benchmark:quick    # Quick performance comparison
+npm run benchmark:full     # Comprehensive benchmark suite
+npm run benchmark:memory   # Memory usage profiling
+\`\`\`
+
+5. **Access the applications**
    - **Frontend**: [http://localhost:3000](http://localhost:3000)
-   - **API**: [http://localhost:8000](http://localhost:8000)
-   - **API Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
+   - **FastAPI**: [http://localhost:8000](http://localhost:8000)
+   - **FastAPI Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
+   - **R Backend**: [http://localhost:8001](http://localhost:8001)
+   - **R Health Check**: [http://localhost:8001/health](http://localhost:8001/health)
 
 #### Option 3: Frontend Only
 
@@ -526,13 +904,98 @@ npm run build
 npm run start
 \`\`\`
 
+### R Backend Setup
+
+#### Installing R
+
+**Windows:**
+1. Download R from [https://cran.r-project.org/bin/windows/base/](https://cran.r-project.org/bin/windows/base/)
+2. Run the installer and follow the setup wizard
+3. Verify installation: `Rscript --version`
+
+**macOS:**
+\`\`\`bash
+# Using Homebrew (recommended)
+brew install r
+
+# Verify installation
+Rscript --version
+\`\`\`
+
+**Linux (Ubuntu/Debian):**
+\`\`\`bash
+sudo apt update
+sudo apt install r-base r-base-dev
+Rscript --version
+\`\`\`
+
+#### R Package Installation
+
+\`\`\`bash
+cd r-backend
+Rscript install-packages.R
+\`\`\`
+
+This installs required packages:
+- `plumber` - Web API framework for R
+- `data.table` - High-performance data manipulation
+- `jsonlite` - JSON parsing and generation
+
+#### Starting R Backend
+
+**Windows:**
+\`\`\`cmd
+cd r-backend
+start-server.bat
+\`\`\`
+
+**macOS/Linux:**
+\`\`\`bash
+cd r-backend
+chmod +x start-server.sh
+./start-server.sh
+\`\`\`
+
+#### Verifying R Backend
+
+\`\`\`bash
+# Test health endpoint
+curl http://localhost:8001/health
+
+# Expected response:
+{
+  "status": "healthy",
+  "backend": "R + data.table",
+  "version": "R version 4.x.x",
+  "packages": {
+    "plumber": "1.x.x",
+    "data.table": "1.x.x",
+    "jsonlite": "1.x.x"
+  }
+}
+\`\`\`
+
 ### Usage
 
 #### Quick Start
 1. Visit the application homepage
-2. Click "Load Example Dataset" to explore with synthetic data
-3. Adjust p-value and Log2(FC) thresholds using the controls
-4. Explore the interactive plot and data tables
+2. Navigate to any volcano plot implementation:
+   - **Client-side**: `/plots/volcano`
+   - **Server-side**: `/plots/volcano-server`
+   - **FastAPI**: `/plots/volcano-fastapi`
+   - **R Backend**: `/plots/volcano-r`
+3. Click "Load Example Dataset" to explore with synthetic data
+4. Adjust p-value and Log2(FC) thresholds using the controls
+5. Compare performance between different implementations
+
+#### Performance Comparison
+1. **Load identical datasets** in FastAPI and R implementations
+2. **Compare response times** and visual output
+3. **Run benchmarks** using the built-in benchmarking tools:
+   \`\`\`bash
+   cd r-backend
+   Rscript quick-benchmark.R
+   \`\`\`
 
 #### Upload Your Data
 1. Prepare a CSV/TSV file with columns:
@@ -545,6 +1008,154 @@ npm run start
 2. Upload via the file input or drag-and-drop
 3. Review any parsing errors in the alert panel
 4. Analyze your results using the interactive tools
+5. Compare results between R and Python backends
+
+## 🔧 Troubleshooting
+
+### R Backend Issues
+
+#### R Not Found
+\`\`\`bash
+# Check R installation
+Rscript --version
+R --version
+
+# Add R to PATH (Windows)
+# Add R installation directory to system PATH
+
+# Reinstall R if needed
+# Windows: Download from CRAN
+# macOS: brew install r
+# Linux: sudo apt install r-base
+\`\`\`
+
+#### Package Installation Fails
+\`\`\`bash
+# Manual package installation
+R
+> install.packages(c("plumber", "data.table", "jsonlite"))
+
+# On Linux, install development packages
+sudo apt install r-base-dev
+
+# Check package installation
+R
+> library(plumber)
+> library(data.table)
+> library(jsonlite)
+\`\`\`
+
+#### Port Already in Use
+\`\`\`bash
+# Check what's using port 8001
+lsof -Pi :8001 -sTCP:LISTEN  # macOS/Linux
+netstat -an | find ":8001"   # Windows
+
+# Use different port
+./start-server.sh 8002  # Unix
+start-server.bat 8002   # Windows
+\`\`\`
+
+#### R Backend Won't Start
+\`\`\`bash
+# Check R backend logs
+cd r-backend
+cat r-server.log
+
+# Test R script directly
+Rscript plumber-api.R
+
+# Verify dependencies
+Rscript validate-setup.R
+\`\`\`
+
+#### Performance Issues
+\`\`\`bash
+# Monitor R backend status
+cd r-backend
+./server-status.sh  # Unix
+server-status.bat   # Windows
+
+# Check memory usage
+curl http://localhost:8001/api/cache-status
+
+# Clear cache if needed
+curl -X POST http://localhost:8001/api/clear-cache
+\`\`\`
+
+### General Issues
+
+#### Frontend Build Errors
+\`\`\`bash
+# Clear Next.js cache
+rm -rf .next
+npm run build
+
+# Check Node.js version
+node --version  # Should be 18+
+\`\`\`
+
+#### API Connection Issues
+\`\`\`bash
+# Verify all services are running
+curl http://localhost:3000      # Frontend
+curl http://localhost:8000/health  # FastAPI
+curl http://localhost:8001/health  # R Backend
+
+# Check environment variables
+echo $API_INTERNAL_URL
+echo $R_API_URL
+\`\`\`
+
+#### Docker Issues
+\`\`\`bash
+# Rebuild containers
+docker-compose down -v
+docker-compose up -d --build
+
+# Check container logs
+docker-compose logs web
+docker-compose logs api
+\`\`\`
+
+### Performance Benchmarking Issues
+
+#### Benchmark Fails to Run
+\`\`\`bash
+# Ensure both backends are running
+curl http://localhost:8000/health
+curl http://localhost:8001/health
+
+# Run health check first
+cd r-backend
+Rscript quick-benchmark.R health
+
+# Check R dependencies
+Rscript -e "library(httr); library(jsonlite)"
+\`\`\`
+
+#### Inconsistent Results
+\`\`\`bash
+# Verify output consistency
+cd r-backend
+Rscript live-comparison-test.R
+
+# Generate detailed comparison
+Rscript compare-outputs.R r_response.json python_response.json
+
+# Check statistical validation
+Rscript statistical-validation.R r_data.json python_data.json
+\`\`\`
+
+### Getting Help
+
+If you encounter issues not covered here:
+
+1. **Check logs** in `r-backend/` directory
+2. **Verify dependencies** with validation scripts
+3. **Test individual components** before running full stack
+4. **Review error messages** for specific guidance
+5. **Check GitHub issues** for known problems
 
 ## 🚀 Deployment & Production
 

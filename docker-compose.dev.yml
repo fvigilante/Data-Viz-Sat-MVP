@@ -24,6 +24,26 @@ services:
       start_period: 40s
     restart: unless-stopped
 
+  # R Backend - Development with hot reload
+  r-backend:
+    build:
+      context: ./r-backend
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      - R_PORT=8001
+      - FRONTEND_URL=http://localhost:3000
+    volumes:
+      - ./r-backend:/app  # Mount source code for hot reload
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
   # Next.js Frontend - Development with hot reload
   web:
     build:
@@ -33,7 +53,10 @@ services:
       - "3000:3000"  # Use standard Next.js port for dev
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:8000  # Point to API on host
+      - NEXT_PUBLIC_R_BACKEND_URL=http://localhost:8001  # Point to R backend on host
+      - NEXT_PUBLIC_R_BACKEND_ENABLED=true
       - API_INTERNAL_URL=http://api:9000  # Internal Docker network communication
+      - R_INTERNAL_URL=http://r-backend:8001  # Internal Docker network communication
       - NODE_ENV=development
     volumes:
       - .:/app  # Mount source code for hot reload
@@ -42,6 +65,8 @@ services:
     command: npm run dev
     depends_on:
       api:
+        condition: service_healthy
+      r-backend:
         condition: service_healthy
     restart: unless-stopped
 
