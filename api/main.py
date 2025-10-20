@@ -10,6 +10,8 @@ from pathlib import Path
 from functools import lru_cache
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
+import subprocess
+import tempfile
 
 app = FastAPI(title="Data Viz Satellite API", version="1.0.0")
 
@@ -624,6 +626,191 @@ async def get_pca_data(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing PCA data: {str(e)}")
+
+@app.get("/api/r/volcano-data", response_model=VolcanoResponse)
+async def get_r_volcano_data(
+    p_value_threshold: float = Query(0.05, ge=0.0, le=1.0),
+    log_fc_min: float = Query(-0.5, ge=-10.0, le=10.0),
+    log_fc_max: float = Query(0.5, ge=-10.0, le=10.0),
+    search_term: Optional[str] = Query(None),
+    dataset_size: int = Query(10000, ge=100, le=10000000),
+    max_points: int = Query(50000, ge=1000, le=200000),
+    zoom_level: float = Query(1.0, ge=0.1, le=100.0)
+):
+    """
+    R-based volcano plot data generation using direct R script execution
+    """
+    try:
+        # Create R script for data generation
+        r_script = f"""
+library(data.table)
+library(jsonlite)
+
+# Set parameters
+dataset_size <- {dataset_size}
+p_threshold <- {p_value_threshold}
+log_fc_min <- {log_fc_min}
+log_fc_max <- {log_fc_max}
+max_points <- {max_points}
+search_term <- {'NULL' if not search_term else f'"{search_term}"'}
+
+# Generate data
+set.seed(42)
+size <- max(100, min(10000000, as.integer(dataset_size)))
+
+# Create realistic volcano plot distribution
+log_fc <- rnorm(size, mean = 0, sd = 1.2)
+p_values <- runif(size, min = 0.0001, max = 1.0)
+
+# Create significant points (15% of data)
+sig_indices <- sample(size, size * 0.15)
+p_values[sig_indices] <- runif(length(sig_indices), min = 0.0001, max = 0.05)
+
+# Generate gene names
+gene_names <- paste0("R_Gene_", 1:size)
+
+# Create data.table
+dt <- data.table(
+  gene = gene_names,
+  logFC = round(log_fc, 4),
+  padj = round(p_values, 6),
+  classyfireSuperclass = sample(c("Organic acids", "Lipids", "Others"), size, replace = TRUE),
+  classyfireClass = sample(c("Carboxylic acids", "Steroids", "Others"), size, replace = TRUE)
+)
+
+# Apply search filter if provided
+if (!is.null(search_term) && nchar(search_term) > 0) {{
+  search_lower <- tolower(search_term)
+  dt <- dt[grepl(search_lower, tolower(gene))]
+}}
+
+# Categorize points
+dt[, category := fifelse(
+  padj <= p_threshold & logFC < log_fc_min, "down",
+  fifelse(
+    padj <= p_threshold & logFC > log_fc_max, "up",
+    "non_significant"
+  )
+)]
+
+# Calculate stats
+stats_dt <- dt[, .N, by = category]
+stats_list <- setNames(stats_dt$N, stats_dt$category)
+
+stats <- list(
+  up_regulated = as.integer(ifelse(is.na(stats_list[["up"]]), 0, stats_list[["up"]])),
+  down_regulated = as.integer(ifelse(is.na(stats_list[["down"]]), 0, stats_list[["down"]])),
+  non_significant = as.integer(ifelse(is.na(stats_list[["non_significant"]]), 0, stats_list[["non_significant"]]))
+)
+
+# Apply sampling if needed
+total_rows <- {dataset_size}
+points_before_sampling <- nrow(dt)
+is_downsampled <- points_before_sampling > max_points
+
+if (is_downsampled) {{
+  sample_indices <- sample(nrow(dt), max_points)
+  dt <- dt[sample_indices]
+}}
+
+# Prepare result
+result <- list(
+  data = dt,
+  stats = stats,
+  total_rows = as.integer(total_rows),
+  filtered_rows = as.integer(nrow(dt)),
+  points_before_sampling = as.integer(points_before_sampling),
+  is_downsampled = is_downsampled
+)
+
+# Output as JSON
+cat(toJSON(result, auto_unbox = TRUE, digits = 6))
+"""
+        
+        # Execute R script
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.R', delete=False) as f:
+            f.write(r_script)
+            r_script_path = f.name
+        
+        try:
+            # Run R script
+            result = subprocess.run(
+                ['Rscript', r_script_path],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                cwd='/app'
+            )
+            
+            if result.returncode != 0:
+                raise Exception(f"R script failed: {result.stderr}")
+            
+            # Parse JSON result
+            r_data = json.loads(result.stdout)
+            
+            # Convert R data to Python objects
+            data_points = []
+            if r_data.get('data') and len(r_data['data']) > 0:
+                for row in r_data['data']:
+                    data_points.append(VolcanoDataPoint(
+                        gene=row['gene'],
+                        logFC=row['logFC'],
+                        padj=row['padj'],
+                        classyfireSuperclass=row['classyfireSuperclass'],
+                        classyfireClass=row['classyfireClass'],
+                        category=row['category']
+                    ))
+            
+            return VolcanoResponse(
+                data=data_points,
+                stats=r_data['stats'],
+                total_rows=r_data['total_rows'],
+                filtered_rows=r_data['filtered_rows'],
+                points_before_sampling=r_data['points_before_sampling'],
+                is_downsampled=r_data['is_downsampled']
+            )
+            
+        finally:
+            # Clean up temp file
+            os.unlink(r_script_path)
+            
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=504, detail="R computation timed out")
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=500, detail=f"Failed to parse R output: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"R computation failed: {str(e)}")
+
+@app.get("/api/r/health")
+async def r_health_check():
+    """Check if R is available and working"""
+    try:
+        result = subprocess.run(
+            ['Rscript', '-e', 'cat("R is working")'],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            cwd='/app'
+        )
+        
+        if result.returncode == 0:
+            return {
+                "status": "healthy",
+                "backend": "R via subprocess",
+                "r_output": result.stdout.strip()
+            }
+        else:
+            return {
+                "status": "error",
+                "backend": "R via subprocess",
+                "error": result.stderr
+            }
+    except Exception as e:
+        return {
+            "status": "error",
+            "backend": "R via subprocess",
+            "error": str(e)
+        }
 
 if __name__ == "__main__":
     import uvicorn
