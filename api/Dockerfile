@@ -1,6 +1,5 @@
-FROM python:3.11-slim
-
-WORKDIR /app
+# Multi-stage build for faster R installation
+FROM python:3.11-slim AS r-base
 
 # Install system dependencies including R
 RUN apt-get update && apt-get install -y \
@@ -20,11 +19,16 @@ RUN apt-get update && apt-get install -y \
     libjpeg-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install required R packages with error handling
-RUN R -e "options(repos = c(CRAN = 'https://cran.rstudio.com/')); \
+# Install required R packages (optimized for faster builds)
+RUN R -e "options(repos = c(CRAN = 'https://packagemanager.rstudio.com/all/__linux__/focal/latest')); \
     install.packages(c('plumber', 'data.table', 'jsonlite'), \
-    dependencies = TRUE, \
-    clean = TRUE)" || exit 1
+    dependencies = FALSE, \
+    Ncpus = 4)" || exit 1
+
+# Final stage
+FROM r-base
+
+WORKDIR /app
 
 # Copy requirements and install Python dependencies
 COPY requirements.txt .
