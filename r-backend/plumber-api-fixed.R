@@ -100,21 +100,8 @@ categorize_points <- function(dt, p_threshold, log_fc_min, log_fc_max) {
 convert_to_json <- function(dt) {
   if (nrow(dt) == 0) return(list())
   
-  # Convert to list of lists with proper scalar values (not arrays)
-  result <- vector("list", nrow(dt))
-  
-  for (i in seq_len(nrow(dt))) {
-    result[[i]] <- list(
-      gene = as.character(dt$gene[i]),
-      logFC = as.numeric(dt$logFC[i]),
-      padj = as.numeric(dt$padj[i]),
-      classyfireSuperclass = as.character(dt$classyfireSuperclass[i]),
-      classyfireClass = as.character(dt$classyfireClass[i]),
-      category = as.character(dt$category[i])
-    )
-  }
-  
-  return(result)
+  # Return data.table directly - let plumber handle JSON serialization
+  return(dt)
 }
 
 # Main pipeline function

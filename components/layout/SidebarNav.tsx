@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { BarChart3, Info, ScanText as Scatter, TrendingUp, Server, Zap } from "lucide-react"
+import { BarChart3, Info, ScanText as Scatter, TrendingUp, Server, Zap, Code } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
@@ -17,25 +17,32 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   {
-    title: "Volcano (Client)",
+    title: "Volcano (Client-side)",
     href: "/plots/volcano",
     icon: Scatter,
     disabled: false,
   },
   {
-    title: "Volcano (Server)",
+    title: "Volcano (Server-side)",
     href: "/plots/volcano-server",
     icon: Server,
     disabled: false,
   },
   {
-    title: "Volcano (FastAPI)",
+    title: "Volcano (Python)",
     href: "/plots/volcano-fastapi",
     icon: Zap,
     disabled: false,
   },
   {
-    title: "PCA (FastAPI)",
+    title: "Volcano (R)",
+    href: "/plots/volcano-r",
+    icon: Code,
+    disabled: false,
+    badge: "NEW",
+  },
+  {
+    title: "PCA (Python)",
     href: "/plots/pca",
     icon: TrendingUp,
     disabled: false,

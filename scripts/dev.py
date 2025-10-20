@@ -63,7 +63,7 @@ def run_r_backend():
         print("⚠️  R package installation failed. R backend may not work properly.")
     
     # Run R server
-    return subprocess.Popen([rscript_cmd, "plumber-api.R"])
+    return subprocess.Popen([rscript_cmd, "plumber-api-fixed.R"])
 
 def run_nextjs():
     """Run Next.js development server"""
