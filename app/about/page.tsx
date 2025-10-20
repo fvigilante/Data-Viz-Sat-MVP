@@ -160,6 +160,27 @@ export default function AboutPage() {
               </div>
             </div>
 
+            <div className="border border-blue-200 rounded-lg p-4 bg-blue-50/50">
+              <div className="flex items-center gap-2 mb-3">
+                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                  /plots/volcano-r
+                </Badge>
+                <span className="text-xs font-medium text-blue-800">R + data.table Backend</span>
+              </div>
+
+              <h4 className="font-semibold text-blue-900 mb-2 text-sm">📊 Statistical Computing Excellence</h4>
+              <ul className="space-y-1 text-xs text-blue-800">
+                <li><strong>Data Flow:</strong> R Plumber API → data.table → Environment Cache → JSON</li>
+                <li><strong>Performance:</strong> 1.27x faster than Python on average, 1.85x on medium datasets</li>
+                <li><strong>Features:</strong> Native R statistics, vectorized operations, feature flag monitoring</li>
+                <li><strong>Technology:</strong> Plumber + data.table + R environment caching</li>
+              </ul>
+
+              <div className="mt-3 p-2 bg-blue-100 rounded text-xs text-blue-700">
+                <strong>Best for:</strong> Statistical accuracy, R ecosystem integration, performance benchmarking
+              </div>
+            </div>
+
             <div className="border border-indigo-200 rounded-lg p-4 bg-indigo-50/50">
               <div className="flex items-center gap-2 mb-3">
                 <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200">
@@ -368,6 +389,7 @@ export default function AboutPage() {
                     <th className="text-left py-2 px-2 font-medium">Dataset Size</th>
                     <th className="text-left py-2 px-2 font-medium">Client-Side</th>
                     <th className="text-left py-2 px-2 font-medium">Server-Side</th>
+                    <th className="text-left py-2 px-2 font-medium">R Backend</th>
                     <th className="text-left py-2 px-2 font-medium">FastAPI (First)</th>
                     <th className="text-left py-2 px-2 font-medium">FastAPI (Cached)</th>
                     <th className="text-left py-2 px-2 font-medium">Recommendation</th>
@@ -378,6 +400,7 @@ export default function AboutPage() {
                     <td className="py-2 px-2 font-medium">1,000 rows</td>
                     <td className="py-2 px-2">~200ms</td>
                     <td className="py-2 px-2">~150ms</td>
+                    <td className="py-2 px-2 text-blue-600 font-medium">~112ms</td>
                     <td className="py-2 px-2">~300ms</td>
                     <td className="py-2 px-2">~200ms</td>
                     <td className="py-2 px-2"><Badge variant="outline" className="bg-green-50 text-green-700">Client-side</Badge></td>
@@ -386,6 +409,7 @@ export default function AboutPage() {
                     <td className="py-2 px-2 font-medium">10,000 rows</td>
                     <td className="py-2 px-2">~800ms</td>
                     <td className="py-2 px-2">~300ms</td>
+                    <td className="py-2 px-2 text-blue-600 font-medium">~364ms</td>
                     <td className="py-2 px-2">~800ms</td>
                     <td className="py-2 px-2">~400ms</td>
                     <td className="py-2 px-2"><Badge variant="outline" className="bg-green-50 text-green-700">Client-side</Badge></td>
@@ -394,6 +418,7 @@ export default function AboutPage() {
                     <td className="py-2 px-2 font-medium">50,000 rows</td>
                     <td className="py-2 px-2">~3s</td>
                     <td className="py-2 px-2">~800ms</td>
+                    <td className="py-2 px-2 text-blue-600 font-medium">~1.6s</td>
                     <td className="py-2 px-2">~2s</td>
                     <td className="py-2 px-2">~1.5s</td>
                     <td className="py-2 px-2"><Badge variant="outline" className="bg-purple-50 text-purple-700">FastAPI</Badge></td>
@@ -402,6 +427,7 @@ export default function AboutPage() {
                     <td className="py-2 px-2 font-medium">100,000 rows</td>
                     <td className="py-2 px-2">❌ Crashes</td>
                     <td className="py-2 px-2">~2s</td>
+                    <td className="py-2 px-2 text-orange-600 font-medium">~10s</td>
                     <td className="py-2 px-2">~4.5s</td>
                     <td className="py-2 px-2">~3.2s</td>
                     <td className="py-2 px-2"><Badge variant="outline" className="bg-purple-50 text-purple-700">FastAPI</Badge></td>
@@ -410,6 +436,7 @@ export default function AboutPage() {
                     <td className="py-2 px-2 font-medium">500,000 rows</td>
                     <td className="py-2 px-2">❌ N/A</td>
                     <td className="py-2 px-2">❌ Timeout</td>
+                    <td className="py-2 px-2 text-red-600">❌ Memory limit</td>
                     <td className="py-2 px-2">~3s</td>
                     <td className="py-2 px-2">~2.8s</td>
                     <td className="py-2 px-2"><Badge variant="outline" className="bg-purple-50 text-purple-700">FastAPI</Badge></td>
@@ -418,6 +445,7 @@ export default function AboutPage() {
                     <td className="py-2 px-2 font-medium">1,000,000+ rows</td>
                     <td className="py-2 px-2">❌ N/A</td>
                     <td className="py-2 px-2">❌ N/A</td>
+                    <td className="py-2 px-2 text-red-600">❌ Not feasible</td>
                     <td className="py-2 px-2">~5s</td>
                     <td className="py-2 px-2">~4s</td>
                     <td className="py-2 px-2"><Badge variant="outline" className="bg-purple-50 text-purple-700">FastAPI</Badge></td>
