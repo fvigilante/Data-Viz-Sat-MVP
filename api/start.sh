@@ -35,7 +35,7 @@ check_service() {
     return 1
 }
 
-# Start R server in background
+# Start R server in background (optional - continue if it fails)
 echo "Starting R backend server..."
 cd r-backend
 Rscript plumber-api-fixed.R &
@@ -43,8 +43,14 @@ R_PID=$!
 cd ..
 echo "R server started with PID: $R_PID"
 
-# Wait for R server to be ready
-check_service "http://127.0.0.1:8001/health" "R backend"
+# Try to wait for R server but don't fail if it doesn't start
+echo "Checking R backend availability..."
+if check_service "http://127.0.0.1:8001/health" "R backend"; then
+    echo "R backend is available"
+else
+    echo "WARNING: R backend failed to start - continuing with Python API only"
+    echo "R functionality will be available via subprocess calls"
+fi
 
 # Start Python FastAPI server
 echo "Starting Python FastAPI server..."
