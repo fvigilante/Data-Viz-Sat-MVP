@@ -22,10 +22,13 @@ RUN apt-get update && apt-get install -y \
     libjpeg-dev \
     pkg-config \
     zlib1g-dev \
+    libicu-dev \
+    libicu70 \
     && rm -rf /var/lib/apt/lists/*
 
 # Install R packages with full dependencies to ensure everything works
-RUN R -e "options(repos = c(CRAN = 'https://packagemanager.rstudio.com/all/__linux__/focal/latest')); \
+RUN R -e "options(repos = c(CRAN = 'https://packagemanager.rstudio.com/all/__linux__/jammy/latest')); \
+    install.packages('stringi', force = TRUE, dependencies = TRUE); \
     install.packages(c('plumber', 'data.table', 'jsonlite'), \
     dependencies = TRUE, \
     Ncpus = parallel::detectCores())"
@@ -44,6 +47,7 @@ RUN apt-get update && apt-get install -y \
     libsodium23 \
     libcurl4 \
     libssl3 \
+    libicu70 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy R packages from builder
@@ -59,8 +63,10 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 COPY api/ .
 COPY r-backend/ ./r-backend/
 
-# Make scripts executable
-RUN chmod +x start.sh && \
+# Convert line endings and make scripts executable
+RUN sed -i 's/\r$//' start.sh && \
+    chmod +x start.sh && \
+    sed -i 's/\r$//' r-backend/plumber-api-fixed.R && \
     chmod +x r-backend/plumber-api-fixed.R
 
 # Verify everything works
