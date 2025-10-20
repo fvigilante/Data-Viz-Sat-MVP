@@ -26,8 +26,6 @@ spec:
           value: "false"
         - name: NODE_ENV
           value: "production"
-        - name: PORT
-          value: "8080"
         resources:
           limits:
             cpu: "4"
