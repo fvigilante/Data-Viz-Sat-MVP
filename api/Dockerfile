@@ -10,8 +10,8 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install R packages with dependencies (using standard R method)
-RUN R -e "install.packages(c('plumber', 'data.table', 'jsonlite'), dependencies = TRUE, repos = 'https://cran.rstudio.com/')"
+# Install only essential R packages (minimal dependencies)
+RUN R -e "install.packages(c('plumber', 'data.table', 'jsonlite'), dependencies = c('Depends', 'Imports'), repos = 'https://cran.rstudio.com/')"
 
 # Final stage - use the R image as base
 FROM r-stage
