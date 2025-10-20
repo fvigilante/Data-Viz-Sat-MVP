@@ -1,39 +1,71 @@
-# Use rocker image that has R pre-installed
-FROM rocker/r-ver:4.3.2 AS r-stage
+# Multi-stage build for production optimization
+FROM rocker/r-ver:4.3.2 AS r-builder
 
-# Install system dependencies
+# Install ALL system dependencies needed for R packages
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
     python3-dev \
+    python3-venv \
     gcc \
+    g++ \
+    make \
     curl \
+    wget \
     libsodium-dev \
     libcurl4-openssl-dev \
     libssl-dev \
+    libxml2-dev \
+    libfontconfig1-dev \
+    libfreetype6-dev \
+    libpng-dev \
+    libjpeg-dev \
     pkg-config \
+    zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install only essential R packages (minimal dependencies)
-RUN R -e "install.packages(c('plumber', 'data.table', 'jsonlite'), dependencies = c('Depends', 'Imports'), repos = 'https://cran.rstudio.com/')"
+# Install R packages with full dependencies to ensure everything works
+RUN R -e "options(repos = c(CRAN = 'https://packagemanager.rstudio.com/all/__linux__/focal/latest')); \
+    install.packages(c('plumber', 'data.table', 'jsonlite'), \
+    dependencies = TRUE, \
+    Ncpus = parallel::detectCores())"
 
-# Final stage - use the R image as base
-FROM r-stage
+# Verify R packages work
+RUN R -e "library(plumber); library(data.table); library(jsonlite); cat('R packages OK\n')"
+
+# Production stage - copy only what's needed
+FROM rocker/r-ver:4.3.2 AS production
+
+# Install minimal runtime dependencies
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    curl \
+    libsodium23 \
+    libcurl4 \
+    libssl3 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy R packages from builder
+COPY --from=r-builder /usr/local/lib/R/site-library /usr/local/lib/R/site-library
 
 WORKDIR /app
 
-# Copy requirements and install Python dependencies
-COPY requirements.txt .
+# Copy and install Python dependencies
+COPY api/requirements.txt .
 RUN pip3 install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# Copy application files
 COPY api/ .
-
-# Copy R backend files
 COPY r-backend/ ./r-backend/
 
-# Make start script executable
-RUN chmod +x start.sh
+# Make scripts executable
+RUN chmod +x start.sh && \
+    chmod +x r-backend/plumber-api-fixed.R
+
+# Verify everything works
+RUN python3 -c "import fastapi, uvicorn; print('Python packages OK')" && \
+    R -e "library(plumber); library(data.table); library(jsonlite); cat('R packages OK\n')"
 
 # Expose port 9000 for Cloud Run multi-container
 EXPOSE 9000
