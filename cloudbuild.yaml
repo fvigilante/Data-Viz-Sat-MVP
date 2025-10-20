@@ -1,5 +1,5 @@
 steps:
-  # Build the FastAPI backend image
+  # Build the FastAPI backend image (with R backend included)
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
@@ -7,7 +7,7 @@ steps:
       - 'gcr.io/$PROJECT_ID/data-viz-satellite-api:latest'
       - '-f'
       - 'api/Dockerfile'
-      - './api'
+      - '.'
     id: 'build-api'
 
   # Build the Next.js frontend image
@@ -43,8 +43,8 @@ steps:
     args:
       - '-c'
       - |
-        # Replace PROJECT_ID in service.yaml
-        sed "s/PROJECT_ID/$PROJECT_ID/g" service.yaml > service-deploy.yaml
+        # Replace PROJECT_ID in service.yaml (works on both Linux and Windows)
+        cat service.yaml | sed "s/PROJECT_ID/$PROJECT_ID/g" > service-deploy.yaml
         
         # Deploy the service
         gcloud run services replace service-deploy.yaml --region=$_DEPLOY_REGION --platform=managed
