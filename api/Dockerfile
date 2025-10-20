@@ -8,6 +8,10 @@ RUN apt-get update && apt-get install -y \
     python3-dev \
     gcc \
     curl \
+    libsodium-dev \
+    libcurl4-openssl-dev \
+    libssl-dev \
+    pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
 # Install only essential R packages (minimal dependencies)
