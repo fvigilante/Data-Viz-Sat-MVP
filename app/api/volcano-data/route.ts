@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 
-const API_INTERNAL_URL = process.env.API_INTERNAL_URL || "http://127.0.0.1:9000"
+const API_INTERNAL_URL = process.env.API_INTERNAL_URL || "http://127.0.0.1:8001"
 
 export async function GET(request: NextRequest) {
   try {

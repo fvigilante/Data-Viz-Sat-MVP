@@ -1,0 +1,44 @@
+steps:
+  # Build the combined image (frontend + API + R)
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/data-viz-satellite-combined:latest'
+      - '-f'
+      - 'Dockerfile'
+      - '.'
+    id: 'build-combined'
+
+  # Push the combined image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/data-viz-satellite-combined:latest'
+    id: 'push-combined'
+    waitFor: ['build-combined']
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        # Replace PROJECT_ID in service-single.yaml
+        cat service-single.yaml | sed "s/PROJECT_ID/$PROJECT_ID/g" > service-single-deploy.yaml
+        
+        # Deploy the service
+        gcloud run services replace service-single-deploy.yaml --region=$_DEPLOY_REGION --platform=managed
+    id: 'deploy-service'
+    waitFor: ['push-combined']
+
+# Substitution variables
+substitutions:
+  _DEPLOY_REGION: 'europe-west1'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: 'E2_HIGHCPU_8'
+
+images:
+  - 'gcr.io/$PROJECT_ID/data-viz-satellite-combined:latest'
