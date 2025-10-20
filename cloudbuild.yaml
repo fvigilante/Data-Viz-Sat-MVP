@@ -1,41 +1,22 @@
 steps:
-  # Build the FastAPI backend image (with R backend included)
+  # Build the combined image (frontend + API + R)
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
       - '-t'
-      - 'gcr.io/$PROJECT_ID/data-viz-satellite-api:latest'
+      - 'gcr.io/$PROJECT_ID/data-viz-satellite-combined:latest'
       - '-f'
-      - 'api/Dockerfile'
+      - 'Dockerfile'
       - '.'
-    id: 'build-api'
+    id: 'build-combined'
 
-  # Build the Next.js frontend image
-  - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - 'build'
-      - '-t'
-      - 'gcr.io/$PROJECT_ID/data-viz-satellite-frontend:latest'
-      - '-f'
-      - 'Dockerfile.production'
-      - '.'
-    id: 'build-frontend'
-
-  # Push the API image
+  # Push the combined image
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
-      - 'gcr.io/$PROJECT_ID/data-viz-satellite-api:latest'
-    id: 'push-api'
-    waitFor: ['build-api']
-
-  # Push the frontend image
-  - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - 'push'
-      - 'gcr.io/$PROJECT_ID/data-viz-satellite-frontend:latest'
-    id: 'push-frontend'
-    waitFor: ['build-frontend']
+      - 'gcr.io/$PROJECT_ID/data-viz-satellite-combined:latest'
+    id: 'push-combined'
+    waitFor: ['build-combined']
 
   # Deploy to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -43,13 +24,13 @@ steps:
     args:
       - '-c'
       - |
-        # Replace PROJECT_ID in service.yaml (works on both Linux and Windows)
-        cat service.yaml | sed "s/PROJECT_ID/$PROJECT_ID/g" > service-deploy.yaml
+        # Replace PROJECT_ID in service-single.yaml
+        cat service-single.yaml | sed "s/PROJECT_ID/$PROJECT_ID/g" > service-single-deploy.yaml
         
         # Deploy the service
-        gcloud run services replace service-deploy.yaml --region=$_DEPLOY_REGION --platform=managed
+        gcloud run services replace service-single-deploy.yaml --region=$_DEPLOY_REGION --platform=managed
     id: 'deploy-service'
-    waitFor: ['push-api', 'push-frontend']
+    waitFor: ['push-combined']
 
 # Substitution variables
 substitutions:
@@ -60,5 +41,4 @@ options:
   machineType: 'E2_HIGHCPU_8'
 
 images:
-  - 'gcr.io/$PROJECT_ID/data-viz-satellite-api:latest'
-  - 'gcr.io/$PROJECT_ID/data-viz-satellite-frontend:latest'
+  - 'gcr.io/$PROJECT_ID/data-viz-satellite-combined:latest'
