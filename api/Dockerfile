@@ -1,38 +1,26 @@
-# Multi-stage build for faster R installation
-FROM python:3.11-slim AS r-base
+# Use rocker image that has R pre-installed
+FROM rocker/r-ver:4.3.2 AS r-stage
 
-# Install system dependencies including R
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    python3-dev \
     gcc \
     curl \
-    r-base \
-    r-base-dev \
-    libcurl4-openssl-dev \
-    libssl-dev \
-    libxml2-dev \
-    libsodium-dev \
-    libgit2-dev \
-    libfontconfig1-dev \
-    libfreetype6-dev \
-    libpng-dev \
-    libtiff5-dev \
-    libjpeg-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install required R packages (optimized for faster builds)
-RUN R -e "options(repos = c(CRAN = 'https://packagemanager.rstudio.com/all/__linux__/focal/latest')); \
-    install.packages(c('plumber', 'data.table', 'jsonlite'), \
-    dependencies = FALSE, \
-    Ncpus = 4)" || exit 1
+# Install R packages with dependencies (using standard R method)
+RUN R -e "install.packages(c('plumber', 'data.table', 'jsonlite'), dependencies = TRUE, repos = 'https://cran.rstudio.com/')"
 
-# Final stage
-FROM r-base
+# Final stage - use the R image as base
+FROM r-stage
 
 WORKDIR /app
 
 # Copy requirements and install Python dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip3 install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY api/ .
