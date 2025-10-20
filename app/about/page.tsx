@@ -497,7 +497,7 @@ export default function AboutPage() {
           <div className="not-prose bg-gradient-to-r from-emerald-50 to-green-50 p-6 rounded-lg border border-emerald-200 mb-6">
             <h4 className="text-lg font-semibold text-emerald-900 mb-4">Strategic Scaling Approaches for Production Deployment</h4>
             <p className="text-emerald-800 text-sm mb-4">
-              The choice of architecture completely determines the scalability strategy and infrastructure requirements. 
+              The choice of architecture completely determines the scalability strategy and infrastructure requirements.
               Each approach has unique scaling characteristics that adapt to different types of users and projects.
             </p>
 
@@ -560,7 +560,7 @@ export default function AboutPage() {
 
           <div className="not-prose bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-lg border border-indigo-200 my-6">
             <h4 className="text-lg font-semibold text-indigo-900 mb-4">Infrastructure Scaling Strategies for Enterprise Deployment</h4>
-            
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
               <div>
                 <h5 className="font-semibold text-indigo-900 mb-3 text-sm">🔄 Horizontal Scaling Techniques</h5>
@@ -570,7 +570,7 @@ export default function AboutPage() {
                     <p className="mt-1">Docker Compose scaling: <code>docker-compose scale fastapi=3</code></p>
                     <p>Capacity: from 10-30 users → 30-90 concurrent users</p>
                   </div>
-                  
+
                   <div className="bg-indigo-100 p-3 rounded">
                     <strong>Distributed Redis Cache</strong>
                     <p className="mt-1">Shared cache between instances: <code>REDIS_CACHE="redis://cache:6379"</code></p>
@@ -617,9 +617,9 @@ export default function AboutPage() {
                 <div className="bg-white p-3 rounded border">
                   <strong className="text-blue-900">Scenario: Educational/Demo Platform</strong>
                   <p className="text-blue-800 mt-1">
-                    <strong>Choice:</strong> 100% Client-side<br/>
-                    <strong>Infrastructure:</strong> CDN + Static hosting<br/>
-                    <strong>Capacity:</strong> Unlimited (distributed computing)<br/>
+                    <strong>Choice:</strong> 100% Client-side<br />
+                    <strong>Infrastructure:</strong> CDN + Static hosting<br />
+                    <strong>Capacity:</strong> Unlimited (distributed computing)<br />
                     <strong>Cost:</strong> Minimal (~$50/month)
                   </p>
                 </div>
@@ -627,9 +627,9 @@ export default function AboutPage() {
                 <div className="bg-white p-3 rounded border">
                   <strong className="text-amber-900">Scenario: Enterprise Platform</strong>
                   <p className="text-amber-800 mt-1">
-                    <strong>Choice:</strong> Mixed intelligent routing<br/>
-                    <strong>Infrastructure:</strong> Load balancer + Redis + CDN<br/>
-                    <strong>Capacity:</strong> 100-200 concurrent users<br/>
+                    <strong>Choice:</strong> Mixed intelligent routing<br />
+                    <strong>Infrastructure:</strong> Load balancer + Redis + CDN<br />
+                    <strong>Capacity:</strong> 100-200 concurrent users<br />
                     <strong>Cost:</strong> Moderate (~$500/month)
                   </p>
                 </div>
@@ -637,9 +637,9 @@ export default function AboutPage() {
                 <div className="bg-white p-3 rounded border">
                   <strong className="text-purple-900">Scenario: Research Institution</strong>
                   <p className="text-purple-800 mt-1">
-                    <strong>Choice:</strong> FastAPI cluster + Kubernetes<br/>
-                    <strong>Infrastructure:</strong> Multi-node + GPU acceleration<br/>
-                    <strong>Capacity:</strong> 50-100 simultaneous researchers<br/>
+                    <strong>Choice:</strong> FastAPI cluster + Kubernetes<br />
+                    <strong>Infrastructure:</strong> Multi-node + GPU acceleration<br />
+                    <strong>Capacity:</strong> 50-100 simultaneous researchers<br />
                     <strong>Cost:</strong> High (~$2000/month)
                   </p>
                 </div>
@@ -649,8 +649,8 @@ export default function AboutPage() {
             <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
               <h5 className="font-semibold text-yellow-900 mb-2 text-sm">💡 Key Insight: Architecture Determines Scaling Strategy</h5>
               <p className="text-xs text-yellow-800">
-                <strong>Client-side:</strong> Leverages distributed power of user PCs - nearly infinite scalability but limited by individual device capabilities.<br/>
-                <strong>Server-side:</strong> Requires dedicated infrastructure but offers complete control and consistent performance for all users.<br/>
+                <strong>Client-side:</strong> Leverages distributed power of user PCs - nearly infinite scalability but limited by individual device capabilities.<br />
+                <strong>Server-side:</strong> Requires dedicated infrastructure but offers complete control and consistent performance for all users.<br />
                 <strong>FastAPI:</strong> Needs advanced configurations and significant resources, but guarantees optimal performance for intensive scientific workloads.
               </p>
             </div>

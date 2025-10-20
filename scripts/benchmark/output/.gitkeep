@@ -1,0 +1,5 @@
+# This directory will contain benchmark output files
+# - benchmark-results.json
+# - performance-matrix.json
+# - benchmark-report.md
+# - about-page-backup.tsx

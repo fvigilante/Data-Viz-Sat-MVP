@@ -1,0 +1,32 @@
+{
+  "version": "1.0.0",
+  "test_sizes": [1000, 10000, 50000, 100000, 500000, 1000000],
+  "iterations_per_test": 3,
+  "timeout_ms": 30000,
+  "services": {
+    "client_side": {
+      "enabled": true,
+      "browser": "chromium",
+      "headless": true
+    },
+    "server_side": {
+      "enabled": true,
+      "endpoint": "http://localhost:3000"
+    },
+    "fastapi": {
+      "enabled": true,
+      "endpoint": "http://localhost:8000",
+      "test_cache": true
+    },
+    "r_backend": {
+      "enabled": true,
+      "endpoint": "http://localhost:8001"
+    }
+  },
+  "output": {
+    "format": "json",
+    "update_about_page": true,
+    "backup_original": true,
+    "output_dir": "scripts/benchmark/output"
+  }
+}

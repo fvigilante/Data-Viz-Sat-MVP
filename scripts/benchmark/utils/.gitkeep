@@ -1,0 +1,6 @@
+# This directory will contain utility modules
+# - ConfigManager.ts
+# - Logger.ts
+# - StatisticsCalculator.ts
+# - FileUpdater.ts
+# - CodeGenerator.ts
